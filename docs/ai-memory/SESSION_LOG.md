@@ -6,3 +6,6 @@
 - نمونه اولیه فاز ۱ ساخته شد: `backend/main.py`، `frontend/index.html`، `scripts/*`، `tests/*`، مستندات.
 - تست دود با mock پاس شد؛ مدل واقعی هنوز تست نشده.
 - تصمیم‌ها در `docs/DECISIONS.md`.
+
+## ۱۴۰۵/۰۸/۲۶ — نشست ۱ (ادامه)
+- مشکل: `start_ocr.bat` روی ویندوز خطای «path not found» داد. اسکریپت‌های `scripts/*.bat` و `setup_windows.ps1` به متن ASCII انگلیسی و پایان‌خط CRLF تبدیل شدند (`.gitattributes` اضافه شد) تا کدگذاری فارسی/LF مشکل نسازد. در صورت نیاز به پیام فارسی، فقط در UI/README بنویس، نه در bat/ps1.
