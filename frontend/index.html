@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProcureMind — تست چت و OCR</title>
+<style>
+/* فونت فقط در همین بخش تعریف می‌شود (:root --font-ui / --font-tech) */
+@font-face{font-family:"SG Kara FaNum";font-weight:300;src:url(fonts/SGKara-FaNum-Light.woff2) format("woff2")}
+@font-face{font-family:"SG Kara FaNum";font-weight:400;src:url(fonts/SGKara-FaNum-Regular.woff2) format("woff2")}
+@font-face{font-family:"SG Kara FaNum";font-weight:600;src:url(fonts/SGKara-FaNum-SemiBold.woff2) format("woff2")}
+@font-face{font-family:"SG Kara FaNum";font-weight:700;src:url(fonts/SGKara-FaNum-Bold.woff2) format("woff2")}
+@font-face{font-family:"SG Kara";font-weight:300;src:url(fonts/SGKara-Std-Light.woff2) format("woff2")}
+@font-face{font-family:"SG Kara";font-weight:400;src:url(fonts/SGKara-Std-Regular.woff2) format("woff2")}
+@font-face{font-family:"SG Kara";font-weight:600;src:url(fonts/SGKara-Std-SemiBold.woff2) format("woff2")}
+@font-face{font-family:"SG Kara";font-weight:700;src:url(fonts/SGKara-Std-Bold.woff2) format("woff2")}
+:root{
+  --font-ui:"SG Kara FaNum",Tahoma,system-ui,sans-serif;   /* ارقام فارسی */
+  --font-tech:"SG Kara",Tahoma,system-ui,sans-serif;        /* ارقام لاتین: شناسه، شماره حساب، مدل */
+  --bg:#f4f5f7;--panel:#fff;--text:#1b1f24;--muted:#6b7280;--line:#e2e5ea;
+  --accent:#1f6feb;--user:#e8f0fe;--bot:#f1f3f5;--ok:#1a9a4a;--bad:#d1242f;
+}
+@media (prefers-color-scheme:dark){:root{--bg:#14171b;--panel:#1d2127;--text:#e7e9ec;--muted:#9aa3ad;--line:#2d333b;--accent:#4c8dff;--user:#1f3350;--bot:#262c33}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:var(--font-ui);background:var(--bg);color:var(--text);display:flex;flex-direction:column;font-size:15px}
+.tech,code,.ltr{font-family:var(--font-tech);direction:ltr;unicode-bidi:embed}
+header{display:flex;align-items:center;gap:16px;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:17px;margin:0;font-weight:700}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad)}
+.dot.ok{background:var(--ok)}
+main{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;min-height:0}
+@media (max-width:900px){main{grid-template-columns:1fr;overflow:auto}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0}
+section>h2{font-size:14px;margin:0;padding:10px 14px;border-bottom:1px solid var(--line);font-weight:600;display:flex;justify-content:space-between;align-items:center}
+#log{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:88%;padding:9px 13px;border-radius:12px;white-space:pre-wrap;line-height:1.9;word-break:break-word}
+.msg.user{background:var(--user);align-self:flex-start}
+.msg.assistant{background:var(--bot);align-self:flex-end}
+.msg.err{background:transparent;border:1px solid var(--bad);color:var(--bad)}
+.stat{font-size:11px;color:var(--muted);margin-top:6px}
+.reason{font-size:12px;color:var(--muted);border-inline-start:3px solid var(--line);padding-inline-start:8px;margin-bottom:6px}
+.composer{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
+textarea,input[type=file],select{font-family:inherit;font-size:14px;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px}
+.composer textarea{flex:1;resize:none;height:56px}
+button{font-family:inherit;font-size:14px;cursor:pointer;border:0;border-radius:8px;padding:8px 16px;background:var(--accent);color:#fff}
+button.sec{background:transparent;color:var(--text);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.ocrbox{padding:12px;display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#ocrText{flex:1;min-height:180px;resize:none;line-height:1.9;width:100%}
+#ocrStatus{font-size:12px;color:var(--muted);min-height:18px}
+</style>
+</head>
+<body>
+<header>
+  <h1>ProcureMind <span class="pill">نمونه اولیه فاز ۱: تست چت و OCR</span></h1>
+  <span class="pill"><span class="dot" id="dQwen"></span>Qwen <span class="tech">:8080</span></span>
+  <span class="pill"><span class="dot" id="dOcr"></span>OCR <span class="tech">:8081</span></span>
+  <span class="pill" id="res"></span>
+</header>
+<main>
+  <section>
+    <h2>گفت‌وگو با Qwen <button class="sec" id="clear">پاک کردن</button></h2>
+    <div id="log"></div>
+    <div class="composer">
+      <textarea id="input" placeholder="پیام خود را بنویسید… (Enter = ارسال، Shift+Enter = خط جدید)"></textarea>
+      <button id="send">ارسال</button>
+    </div>
+  </section>
+  <section>
+    <h2>OCR با Dots</h2>
+    <div class="ocrbox">
+      <div class="row">
+        <input type="file" id="file" accept="image/*,.pdf">
+        <button id="ocrBtn">شروع OCR</button>
+      </div>
+      <div id="ocrStatus"></div>
+      <textarea id="ocrText" placeholder="متن استخراج‌شده اینجا نمایش داده می‌شود و قابل ویرایش است."></textarea>
+      <div class="row">
+        <select id="task">
+          <option value="summary">خلاصه ساختاریافته</option>
+          <option value="proforma">استخراج اطلاعات پیش‌فاکتور (JSON)</option>
+          <option value="request">استخراج اطلاعات درخواست خرید (JSON)</option>
+          <option value="free">فقط متن را بفرست (سؤال را خودم در چت می‌نویسم)</option>
+        </select>
+        <button id="toQwen">ارسال متن اصلاح‌شده به Qwen</button>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const history = [{role:"system", content:"تو دستیار هوشمند بخش تدارکات و بازرگانی هستی. به فارسی، دقیق و مختصر پاسخ بده. اگر اطلاعاتی در متن نیست، حدس نزن و بگو موجود نیست."}];
+const PROMPTS = {
+  summary:"متن زیر خروجی OCR یک سند است. آن را به صورت خلاصه ساختاریافته (نوع سند، شماره و تاریخ، طرفین، اقلام، مبالغ، نکات مهم) بنویس:",
+  proforma:"متن زیر خروجی OCR یک پیش‌فاکتور است. فقط یک JSON با کلیدهای seller, number, date, currency, items[{name,qty,unit,unit_price,total}], total, payment_terms, delivery_time, validity برگردان. مقدار نامشخص را null بگذار:",
+  request:"متن زیر خروجی OCR یک درخواست خرید است. فقط یک JSON با کلیدهای number, date, project, requester, priority, items[{name,spec,qty,unit}], notes برگردان. مقدار نامشخص را null بگذار:",
+  free:""
+};
+let busy = false;
+
+function addMsg(role, text){
+  const d = document.createElement("div");
+  d.className = "msg " + role; d.dir = "auto"; d.textContent = text;
+  $("log").appendChild(d); $("log").scrollTop = $("log").scrollHeight; return d;
+}
+function statLine(s){
+  const parts = [`${s.total_s} ثانیه`];
+  if (s.first_token_s != null) parts.push(`اولین توکن ${s.first_token_s}`);
+  if (s.tokens_per_s != null) parts.push(`${s.tokens_per_s} توکن/ثانیه`);
+  if (s.resources) parts.push(`RAM ${s.resources.ram_used_gb}GB`, `CPU ${s.resources.cpu_percent}%`);
+  return parts.join(" · ");
+}
+
+async function send(text){
+  if (busy || !text.trim()) return;
+  busy = true; $("send").disabled = $("toQwen").disabled = true;
+  history.push({role:"user", content:text});
+  addMsg("user", text);
+  const box = addMsg("assistant", "…");
+  let out = "", reasoning = "", rBox = null, statEl = null;
+  try {
+    const res = await fetch("/api/chat", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({messages: history})});
+    const reader = res.body.getReader(), dec = new TextDecoder(); let buf = "";
+    while (true) {
+      const {value, done} = await reader.read(); if (done) break;
+      buf += dec.decode(value, {stream:true});
+      let i; while ((i = buf.indexOf("\n\n")) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i+2);
+        if (!line.startsWith("data:")) continue;
+        const ev = JSON.parse(line.slice(5));
+        if (ev.type === "delta") { out += ev.text; box.textContent = out; }
+        else if (ev.type === "reasoning") { reasoning += ev.text; }
+        else if (ev.type === "error") { box.className = "msg err"; box.textContent = ev.message; }
+        else if (ev.type === "done") { statEl = document.createElement("div"); statEl.className = "stat"; statEl.textContent = statLine(ev.stats); box.appendChild(statEl); }
+        $("log").scrollTop = $("log").scrollHeight;
+      }
+    }
+    if (out) history.push({role:"assistant", content:out}); else history.pop();
+  } catch (e) { box.className = "msg err"; box.textContent = "خطای ارتباط: " + e; history.pop(); }
+  busy = false; $("send").disabled = $("toQwen").disabled = false;
+}
+
+$("send").onclick = () => { const t = $("input").value; $("input").value = ""; send(t); };
+$("input").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("send").click(); } });
+$("clear").onclick = () => { history.length = 1; $("log").innerHTML = ""; };
+
+$("toQwen").onclick = () => {
+  const txt = $("ocrText").value.trim(); if (!txt) return;
+  const p = PROMPTS[$("task").value];
+  send(p ? `${p}\n\n---\n${txt}` : txt);
+};
+
+$("ocrBtn").onclick = async () => {
+  const f = $("file").files[0]; if (!f) { $("ocrStatus").textContent = "ابتدا یک فایل انتخاب کنید."; return; }
+  $("ocrBtn").disabled = true; $("ocrText").value = ""; $("ocrStatus").textContent = "ارسال فایل…";
+  const fd = new FormData(); fd.append("file", f);
+  const parts = [];
+  try {
+    const res = await fetch("/api/ocr", {method:"POST", body:fd});
+    if (!res.ok) throw new Error((await res.json()).detail || res.status);
+    const reader = res.body.getReader(), dec = new TextDecoder(); let buf = "", pages = 0;
+    while (true) {
+      const {value, done} = await reader.read(); if (done) break;
+      buf += dec.decode(value, {stream:true});
+      let i; while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i+1); if (!line) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === "queued") $("ocrStatus").textContent = "در صف پردازش…";
+        else if (ev.type === "start") { pages = ev.pages; $("ocrStatus").textContent = `${ev.pages} صفحه` + (ev.total_pages > ev.pages ? ` (از ${ev.total_pages})` : "") + " — در حال OCR…"; }
+        else if (ev.type === "page") { parts.push(pages > 1 ? `--- صفحه ${ev.index} ---\n${ev.text}` : ev.text); $("ocrText").value = parts.join("\n\n"); $("ocrStatus").textContent = `صفحه ${ev.index} از ${pages} تمام شد (${ev.seconds} ثانیه)`; }
+        else if (ev.type === "error") { $("ocrStatus").textContent = "خطا: " + ev.message; }
+        else if (ev.type === "done") { $("ocrStatus").textContent = `پایان — ${ev.stats.total_s} ثانیه · RAM ${ev.stats.resources.ram_used_gb}GB · CPU ${ev.stats.resources.cpu_percent}%`; }
+      }
+    }
+  } catch (e) { $("ocrStatus").textContent = "خطا: " + e; }
+  $("ocrBtn").disabled = false;
+};
+
+async function poll(){
+  try {
+    const h = await (await fetch("/api/health")).json();
+    $("dQwen").className = "dot" + (h.qwen.ok ? " ok" : ""); $("dOcr").className = "dot" + (h.ocr.ok ? " ok" : "");
+    $("res").textContent = `RAM ${h.resources.ram_used_gb}GB · CPU ${h.resources.cpu_percent}%`;
+  } catch { $("dQwen").className = $("dOcr").className = "dot"; }
+}
+poll(); setInterval(poll, 5000);
+</script>
+</body>
+</html>
