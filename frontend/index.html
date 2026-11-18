@@ -74,6 +74,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
     <div class="ocrbox">
       <div class="row">
         <input type="file" id="file" accept="image/*,.pdf">
+        <select id="ocrPrompt">
+          <option value="Extract the text content from this image.">فقط متن (پیش‌فرض)</option>
+          <option value="Extract all text from this image and preserve structure in markdown.">متن با ساختار (مارک‌داون)</option>
+        </select>
         <button id="ocrBtn">شروع OCR</button>
       </div>
       <div id="ocrStatus"></div>
@@ -157,7 +161,7 @@ $("toQwen").onclick = () => {
 $("ocrBtn").onclick = async () => {
   const f = $("file").files[0]; if (!f) { $("ocrStatus").textContent = "ابتدا یک فایل انتخاب کنید."; return; }
   $("ocrBtn").disabled = true; $("ocrText").value = ""; $("ocrStatus").textContent = "ارسال فایل…";
-  const fd = new FormData(); fd.append("file", f);
+  const fd = new FormData(); fd.append("file", f); fd.append("prompt", $("ocrPrompt").value);
   const parts = [];
   try {
     const res = await fetch("/api/ocr", {method:"POST", body:fd});
@@ -171,7 +175,9 @@ $("ocrBtn").onclick = async () => {
         const ev = JSON.parse(line);
         if (ev.type === "queued") $("ocrStatus").textContent = "در صف پردازش…";
         else if (ev.type === "start") { pages = ev.pages; $("ocrStatus").textContent = `${ev.pages} صفحه` + (ev.total_pages > ev.pages ? ` (از ${ev.total_pages})` : "") + " — در حال OCR…"; }
-        else if (ev.type === "page") { parts.push(pages > 1 ? `--- صفحه ${ev.index} ---\n${ev.text}` : ev.text); $("ocrText").value = parts.join("\n\n"); $("ocrStatus").textContent = `صفحه ${ev.index} از ${pages} تمام شد (${ev.seconds} ثانیه)`; }
+        else if (ev.type === "page") { parts.push(pages > 1 ? `--- صفحه ${ev.index} ---\n${ev.text}` : ev.text); $("ocrText").value = parts.join("\n\n"); $("ocrStatus").textContent = ev.empty
+            ? `صفحه ${ev.index}: خروجی خالی بود (توکن تولیدشده: ${ev.completion_tokens}، دلیل توقف: ${ev.finish_reason}، ${ev.seconds} ثانیه)`
+            : `صفحه ${ev.index} از ${pages} تمام شد (${ev.seconds} ثانیه)`; }
         else if (ev.type === "error") { $("ocrStatus").textContent = "خطا: " + ev.message; }
         else if (ev.type === "done") { $("ocrStatus").textContent = `پایان — ${ev.stats.total_s} ثانیه · RAM ${ev.stats.resources.ram_used_gb}GB · CPU ${ev.stats.resources.cpu_percent}%`; }
       }

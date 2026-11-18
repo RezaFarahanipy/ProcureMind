@@ -15,7 +15,7 @@ from pathlib import Path
 import fitz  # PyMuPDF
 import httpx
 import psutil
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
@@ -31,8 +31,8 @@ def env(key: str, default: str) -> str:
 QWEN_URL = env("QWEN_URL", "http://127.0.0.1:8080").rstrip("/")
 OCR_URL = env("OCR_URL", "http://127.0.0.1:8081").rstrip("/")
 QWEN_THINKING = env("QWEN_THINKING", "0") == "1"
-OCR_PROMPT = env("OCR_PROMPT", "Extract all text from this image and preserve structure in markdown.")
-OCR_MAX_SIDE = int(env("OCR_MAX_SIDE", "1400"))
+OCR_PROMPT = env("OCR_PROMPT", "Extract the text content from this image.")
+OCR_MAX_SIDE = int(env("OCR_MAX_SIDE", "1000"))  # smaller image = far fewer vision tokens = much faster on CPU
 OCR_PDF_DPI = int(env("OCR_PDF_DPI", "130"))
 OCR_MAX_PAGES = int(env("OCR_MAX_PAGES", "10"))
 OCR_MAX_TOKENS = int(env("OCR_MAX_TOKENS", "4096"))
@@ -204,7 +204,7 @@ def load_pages(data: bytes, filename: str) -> tuple[list[Image.Image], int]:
 
 
 @app.post("/api/ocr")
-async def ocr(file: UploadFile = File(...)):
+async def ocr(file: UploadFile = File(...), prompt: str = Form("")):
     data = await file.read()
     if len(data) > MAX_UPLOAD_MB * 1024 * 1024:
         raise HTTPException(413, f"حداکثر حجم فایل {MAX_UPLOAD_MB}MB است")
@@ -228,7 +228,7 @@ async def ocr(file: UploadFile = File(...)):
                 payload = {
                     "messages": [{"role": "user", "content": [
                         {"type": "image_url", "image_url": {"url": await asyncio.to_thread(pil_to_data_uri, img)}},
-                        {"type": "text", "text": OCR_PROMPT},
+                        {"type": "text", "text": prompt.strip() or OCR_PROMPT},
                     ]}],
                     "temperature": 0,
                     "max_tokens": OCR_MAX_TOKENS,
@@ -239,7 +239,11 @@ async def ocr(file: UploadFile = File(...)):
                     if r.status_code != 200:
                         yield nd({"type": "error", "page": i, "message": f"OCR HTTP {r.status_code}: {r.text[:400]}"})
                         return
-                    text = r.json()["choices"][0]["message"]["content"] or ""
+                    jr = r.json()
+                    choice = (jr.get("choices") or [{}])[0]
+                    text = (choice.get("message") or {}).get("content") or ""
+                    finish = choice.get("finish_reason")
+                    ctoks = (jr.get("usage") or {}).get("completion_tokens")
                 except httpx.ConnectError:
                     yield nd({"type": "error", "message": "اتصال به سرور OCR برقرار نشد. start_ocr.bat را اجرا کنید."})
                     return
@@ -248,7 +252,12 @@ async def ocr(file: UploadFile = File(...)):
                     return
                 sec = round(time.perf_counter() - tp, 2)
                 page_times.append(sec)
-                yield nd({"type": "page", "index": i, "text": text, "seconds": sec})
+                empty = not text.strip()
+                if empty:  # keep the raw reply for debugging blank OCR output
+                    with open(LOGS / "ocr_raw.jsonl", "a", encoding="utf-8") as f:
+                        f.write(json.dumps({"file": saved.name, "page": i, "raw": json.dumps(jr, ensure_ascii=False)[:3000]}, ensure_ascii=False) + "\n")
+                yield nd({"type": "page", "index": i, "text": text, "seconds": sec, "empty": empty,
+                          "finish_reason": finish, "completion_tokens": ctoks})
         total_s = round(time.perf_counter() - t0, 2)
         stats = {"total_s": total_s, "page_seconds": page_times, "resources": resources()}
         log_test({"kind": "ocr", "file": saved.name, "pages": len(pages), **stats})
