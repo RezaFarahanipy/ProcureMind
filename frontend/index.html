@@ -127,6 +127,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
           <option value="auto">PDF: اگر لایه متنی دارد بدون OCR بخوان</option>
           <option value="ocr">PDF: همیشه OCR</option>
         </select>
+        <select id="pdfStyle" title="روش خواندن لایه متنی PDF">
+          <option value="layout">لایه متنی: مرتب‌شده (راست‌به‌چپ + ستون‌های جدول)</option>
+          <option value="raw">لایه متنی: خام</option>
+        </select>
         <span id="pdfInfo" class="pill"></span>
       </div>
       <div id="ocrStatus"></div>
@@ -219,7 +223,7 @@ $("ocrBtn").onclick = async () => {
   $("ocrBtn").disabled = true; $("ocrStop").style.display = ""; $("ocrStop").onclick = () => ctrl.abort();
   const engine = $("ocrEngine").value; saveCurrent(); activeTab = engine; results[engine] = ""; styleTabs();
   $("ocrText").value = ""; $("ocrStatus").textContent = "ارسال فایل…";
-  const fd = new FormData(); fd.append("file", f); fd.append("prompt", $("ocrPrompt").value); fd.append("max_tokens", $("ocrTokens").value); fd.append("pages", $("pages").value || "1"); fd.append("engine", $("ocrEngine").value); fd.append("paddle_lang", $("paddleLang").value); fd.append("mode", $("pdfMode").value);
+  const fd = new FormData(); fd.append("file", f); fd.append("prompt", $("ocrPrompt").value); fd.append("max_tokens", $("ocrTokens").value); fd.append("pages", $("pages").value || "1"); fd.append("engine", $("ocrEngine").value); fd.append("text_style", $("pdfStyle").value); fd.append("paddle_lang", $("paddleLang").value); fd.append("mode", $("pdfMode").value);
   const parts = []; let cur = "", pages = 0, gotText = false; const t0 = Date.now();
   const sec = () => Math.round((Date.now() - t0) / 1000);
   const show = () => { $("ocrText").value = parts.concat(cur ? [cur] : []).join("\n\n"); $("ocrText").scrollTop = $("ocrText").scrollHeight; };

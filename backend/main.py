@@ -13,6 +13,7 @@ import re
 import shlex
 import subprocess
 import time
+import unicodedata
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -368,7 +369,56 @@ def parse_pages(spec: str, total: int) -> list[int]:
     return sorted({n for n in nums if 1 <= n <= total})[:OCR_MAX_PAGES]
 
 
-def load_pages(data: bytes, filename: str, spec: str, mode: str, dpi: int = 0) -> tuple[list[dict], int]:
+_RTL_RE = re.compile(r"[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]")
+_PUNCT_ONLY_RE = re.compile(r"^[:؛،؟!.,;]+$")
+_LEAD_PUNCT_RE = re.compile(r"^([:؛،؟!]+)(\S*[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]\S*)$")
+
+
+def normalize_fa(s: str) -> str:
+    """Presentation forms (ﺗﺎﯾﯿﺪ) -> standard letters (تایید); Arabic kaf/yeh -> Persian ک / ی."""
+    s = unicodedata.normalize("NFKC", s)
+    return s.replace("\u0643", "\u06A9").replace("\u064A", "\u06CC")
+
+
+def layout_text(page) -> str:
+    """Text-layer extraction that rebuilds visual rows (by y) and orders words right-to-left on RTL pages.
+    Words far apart in a row (table columns) are separated with ' | '."""
+    words = [(w[0], w[1], w[2], w[3], normalize_fa(w[4])) for w in page.get_text("words") if w[4].strip()]
+    if not words:
+        return ""
+    heights = sorted(w[3] - w[1] for w in words)
+    med_h = heights[len(heights) // 2] or 10.0
+    letters = [w for w in words if re.search(r"[^\W\d_]", w[4])]
+    page_rtl = bool(letters) and sum(1 for w in letters if _RTL_RE.search(w[4])) * 10 >= len(letters) * 3
+    words.sort(key=lambda w: (w[1] + w[3]) / 2)
+    rows: list[dict] = []
+    for w in words:
+        yc = (w[1] + w[3]) / 2
+        if rows and abs(yc - rows[-1]["yc"]) <= 0.5 * med_h:
+            r = rows[-1]
+            r["w"].append(w)
+            r["yc"] += (yc - r["yc"]) / len(r["w"])
+        else:
+            rows.append({"yc": yc, "w": [w]})
+    lines = []
+    for r in rows:
+        ws = sorted(r["w"], key=lambda w: -w[2] if page_rtl else w[0])
+        out = []
+        for i, w in enumerate(ws):
+            tok = w[4]
+            mt = _LEAD_PUNCT_RE.match(tok)
+            if mt:  # ":نام" (visual-order punctuation) -> "نام:"
+                tok = mt.group(2) + mt.group(1)
+            if i and not _PUNCT_ONLY_RE.match(tok):
+                p = ws[i - 1]
+                gap = (p[0] - w[2]) if page_rtl else (w[0] - p[2])
+                out.append(" | " if gap > med_h else " ")
+            out.append(tok)  # a lone ":" or "،" token sticks to the previous word
+        lines.append("".join(out))
+    return "\n".join(lines)
+
+
+def load_pages(data: bytes, filename: str, spec: str, mode: str, dpi: int = 0, text_style: str = "layout") -> tuple[list[dict], int]:
     """Return (items, total pages). Each item: {index, image|None, text|None}.
     For PDFs in 'auto' mode, a page that already has a text layer is read directly (no OCR)."""
     if filename.lower().endswith(".pdf") or data[:4] == b"%PDF":
@@ -380,7 +430,7 @@ def load_pages(data: bytes, filename: str, spec: str, mode: str, dpi: int = 0) -
             if mode == "auto":
                 txt = page.get_text("text").strip()
                 if len(txt) >= 30:
-                    items.append({"index": n, "image": None, "text": txt})
+                    items.append({"index": n, "image": None, "text": layout_text(page) if text_style == "layout" else txt})
                     continue
             pix = page.get_pixmap(dpi=dpi or OCR_PDF_DPI)
             items.append({"index": n, "image": Image.frombytes("RGB", (pix.width, pix.height), pix.samples), "text": None})
@@ -415,7 +465,7 @@ async def pdfinfo(file: UploadFile = File(...)):
 @app.post("/api/ocr")
 async def ocr(file: UploadFile = File(...), prompt: str = Form(""), max_tokens: int = Form(0),
               pages_spec: str = Form("1", alias="pages"), mode: str = Form("auto"),
-              engine: str = Form("dots"), paddle_lang: str = Form("fa")):
+              engine: str = Form("dots"), paddle_lang: str = Form("fa"), text_style: str = Form("layout")):
     if engine not in ("dots", "paddle"):
         raise HTTPException(400, "engine باید dots یا paddle باشد")
     data = await file.read()
@@ -431,7 +481,7 @@ async def ocr(file: UploadFile = File(...), prompt: str = Form(""), max_tokens: 
         async with ocr_lock:
             try:
                 dpi = PADDLE_PDF_DPI if engine == "paddle" else OCR_PDF_DPI
-                items, total = await asyncio.to_thread(load_pages, data, name, pages_spec, mode, dpi)
+                items, total = await asyncio.to_thread(load_pages, data, name, pages_spec, mode, dpi, text_style)
             except Exception as e:  # noqa: BLE001
                 yield nd({"type": "error", "message": f"فایل خوانده نشد: {e}"})
                 return
