@@ -369,9 +369,8 @@ def parse_pages(spec: str, total: int) -> list[int]:
     return sorted({n for n in nums if 1 <= n <= total})[:OCR_MAX_PAGES]
 
 
-_RTL_RE = re.compile(r"[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]")
-_PUNCT_ONLY_RE = re.compile(r"^[:؛،؟!.,;]+$")
-_LEAD_PUNCT_RE = re.compile(r"^([:؛،؟!]+)(\S*[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]\S*)$")
+_STRONG_R = re.compile(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]")
+_MIRROR = str.maketrans("()[]<>«»{}", ")(][><»«}{")
 
 
 def normalize_fa(s: str) -> str:
@@ -380,41 +379,100 @@ def normalize_fa(s: str) -> str:
     return s.replace("\u0643", "\u06A9").replace("\u064A", "\u06CC")
 
 
-def layout_text(page) -> str:
-    """Text-layer extraction that rebuilds visual rows (by y) and orders words right-to-left on RTL pages.
-    Words far apart in a row (table columns) are separated with ' | '."""
-    words = [(w[0], w[1], w[2], w[3], normalize_fa(w[4])) for w in page.get_text("words") if w[4].strip()]
-    if not words:
-        return ""
-    heights = sorted(w[3] - w[1] for w in words)
-    med_h = heights[len(heights) // 2] or 10.0
-    letters = [w for w in words if re.search(r"[^\W\d_]", w[4])]
-    page_rtl = bool(letters) and sum(1 for w in letters if _RTL_RE.search(w[4])) * 10 >= len(letters) * 3
-    words.sort(key=lambda w: (w[1] + w[3]) / 2)
-    rows: list[dict] = []
-    for w in words:
-        yc = (w[1] + w[3]) / 2
-        if rows and abs(yc - rows[-1]["yc"]) <= 0.5 * med_h:
-            r = rows[-1]
-            r["w"].append(w)
-            r["yc"] += (yc - r["yc"]) / len(r["w"])
+def _cls(ch: str) -> str:
+    c = ch[0]
+    if c.isdigit():
+        return "L"
+    if _STRONG_R.match(c):
+        return "R"
+    return "L" if c.isalpha() else "N"
+
+
+def visual_to_logical(items: list[str]) -> str:
+    """`items` are characters in visual (left-to-right) order. Returns the logical string for an RTL base direction
+    (simplified Unicode bidi: Persian/Arabic runs are reversed, digits/Latin runs keep their order)."""
+    cls = [_cls(c) for c in items]
+    if "R" not in cls:
+        return "".join(items)
+    n, res, i = len(items), cls[:], 0
+    while i < n:  # resolve neutrals (rules N1/N2)
+        if cls[i] == "N":
+            j = i
+            while j < n and cls[j] == "N":
+                j += 1
+            left = cls[i - 1] if i else "R"
+            right = cls[j] if j < n else "R"
+            for k in range(i, j):
+                res[k] = left if left == right else "R"
+            i = j
         else:
-            rows.append({"yc": yc, "w": [w]})
+            i += 1
+    segs: list[list] = []
+    for ch, c in zip(items, res):
+        if segs and segs[-1][0] == c:
+            segs[-1][1].append(ch)
+        else:
+            segs.append([c, [ch]])
+    out = ""
+    for c, chs in reversed(segs):
+        part = "".join(chs) if c == "L" else "".join(chs[::-1]).translate(_MIRROR)
+        if out and not out[-1].isspace() and not part[0].isspace() and c != prev:
+            out += " "  # digits glued to letters ("693متر") -> separate them
+        out += part
+        prev = c
+    return out
+
+
+def layout_text(page) -> str:
+    """Text-layer extraction from character positions: rebuilds visual rows (by y), splits them into cells at wide gaps
+    (table columns), converts each cell from visual to logical order and orders cells right-to-left. Cells joined by ' | '."""
+    chars = []  # (x0, x1, yc, size, text)
+    for b in page.get_text("rawdict")["blocks"]:
+        if b.get("type") != 0:
+            continue
+        for ln in b["lines"]:
+            for sp in ln["spans"]:
+                for ch in sp["chars"]:
+                    t = normalize_fa(ch["c"])
+                    x0, y0, x1, y1 = ch["bbox"]
+                    if t:
+                        chars.append((x0, x1, (y0 + y1) / 2, sp["size"], t))
+    if not chars:
+        return ""
+    sizes = sorted(c[3] for c in chars)
+    size = sizes[len(sizes) // 2] or 9.0
+    letters = [c for c in chars if c[4].strip() and (c[4][0].isalpha())]
+    page_rtl = bool(letters) and sum(1 for c in letters if _STRONG_R.match(c[4][0])) * 10 >= len(letters) * 3
+    chars.sort(key=lambda c: c[2])
+    rows: list[dict] = []
+    for c in chars:
+        if rows and abs(c[2] - rows[-1]["yc"]) <= 0.5 * size:
+            r = rows[-1]
+            r["c"].append(c)
+            r["yc"] += (c[2] - r["yc"]) / len(r["c"])
+        else:
+            rows.append({"yc": c[2], "c": [c]})
+    gap_limit = 1.2 * size
     lines = []
     for r in rows:
-        ws = sorted(r["w"], key=lambda w: -w[2] if page_rtl else w[0])
-        out = []
-        for i, w in enumerate(ws):
-            tok = w[4]
-            mt = _LEAD_PUNCT_RE.match(tok)
-            if mt:  # ":نام" (visual-order punctuation) -> "نام:"
-                tok = mt.group(2) + mt.group(1)
-            if i and not _PUNCT_ONLY_RE.match(tok):
-                p = ws[i - 1]
-                gap = (p[0] - w[2]) if page_rtl else (w[0] - p[2])
-                out.append(" | " if gap > med_h else " ")
-            out.append(tok)  # a lone ":" or "،" token sticks to the previous word
-        lines.append("".join(out))
+        cs = sorted(r["c"], key=lambda c: (c[0] + c[1]) / 2)
+        cells, cur = [], [cs[0]]
+        for prev_c, c in zip(cs, cs[1:]):
+            if c[0] - prev_c[1] > gap_limit:
+                cells.append(cur)
+                cur = []
+            cur.append(c)
+        cells.append(cur)
+        has_r = any(_STRONG_R.match(c[4][0]) for c in cs)
+        texts = []
+        for cell in cells:
+            s = visual_to_logical([c[4] for c in cell]).strip()
+            if s:
+                texts.append(s)
+        if has_r or page_rtl:
+            texts.reverse()  # right-most cell first
+        if texts:
+            lines.append(" | ".join(texts))
     return "\n".join(lines)
 
 
