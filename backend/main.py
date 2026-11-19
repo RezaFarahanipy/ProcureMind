@@ -32,10 +32,12 @@ QWEN_URL = env("QWEN_URL", "http://127.0.0.1:8080").rstrip("/")
 OCR_URL = env("OCR_URL", "http://127.0.0.1:8081").rstrip("/")
 QWEN_THINKING = env("QWEN_THINKING", "0") == "1"
 OCR_PROMPT = env("OCR_PROMPT", "Extract the text content from this image.")
-OCR_MAX_SIDE = int(env("OCR_MAX_SIDE", "1000"))  # smaller image = far fewer vision tokens = much faster on CPU
+OCR_MAX_SIDE = int(env("OCR_MAX_SIDE", "800"))  # smaller image = far fewer vision tokens = much faster on CPU
 OCR_PDF_DPI = int(env("OCR_PDF_DPI", "130"))
 OCR_MAX_PAGES = int(env("OCR_MAX_PAGES", "10"))
-OCR_MAX_TOKENS = int(env("OCR_MAX_TOKENS", "4096"))
+OCR_MAX_TOKENS = int(env("OCR_MAX_TOKENS", "1024"))
+OCR_TEMPERATURE = float(env("OCR_TEMPERATURE", "0.1"))  # greedy (0) tends to loop; 0.1 is the model authors' suggestion
+OCR_REPEAT_PENALTY = float(env("OCR_REPEAT_PENALTY", "1.05"))
 MAX_UPLOAD_MB = 30
 
 UPLOADS = ROOT / "data" / "uploads"
@@ -204,7 +206,7 @@ def load_pages(data: bytes, filename: str) -> tuple[list[Image.Image], int]:
 
 
 @app.post("/api/ocr")
-async def ocr(file: UploadFile = File(...), prompt: str = Form("")):
+async def ocr(file: UploadFile = File(...), prompt: str = Form(""), max_tokens: int = Form(0)):
     data = await file.read()
     if len(data) > MAX_UPLOAD_MB * 1024 * 1024:
         raise HTTPException(413, f"حداکثر حجم فایل {MAX_UPLOAD_MB}MB است")
@@ -225,25 +227,45 @@ async def ocr(file: UploadFile = File(...), prompt: str = Form("")):
             page_times = []
             for i, img in enumerate(pages, 1):
                 tp = time.perf_counter()
+                text, finish, ctoks = "", None, None
                 payload = {
                     "messages": [{"role": "user", "content": [
                         {"type": "image_url", "image_url": {"url": await asyncio.to_thread(pil_to_data_uri, img)}},
                         {"type": "text", "text": prompt.strip() or OCR_PROMPT},
                     ]}],
-                    "temperature": 0,
-                    "max_tokens": OCR_MAX_TOKENS,
+                    "temperature": OCR_TEMPERATURE,
+                    "top_p": 1.0,
+                    "repeat_penalty": OCR_REPEAT_PENALTY,
+                    "max_tokens": max_tokens if max_tokens > 0 else OCR_MAX_TOKENS,
+                    "stream": True,
                 }
                 try:
                     async with httpx.AsyncClient(timeout=httpx.Timeout(None, connect=5)) as c:
-                        r = await c.post(f"{OCR_URL}/v1/chat/completions", json=payload)
-                    if r.status_code != 200:
-                        yield nd({"type": "error", "page": i, "message": f"OCR HTTP {r.status_code}: {r.text[:400]}"})
-                        return
-                    jr = r.json()
-                    choice = (jr.get("choices") or [{}])[0]
-                    text = (choice.get("message") or {}).get("content") or ""
-                    finish = choice.get("finish_reason")
-                    ctoks = (jr.get("usage") or {}).get("completion_tokens")
+                        async with c.stream("POST", f"{OCR_URL}/v1/chat/completions", json=payload) as r:
+                            if r.status_code != 200:
+                                body = (await r.aread()).decode("utf-8", "replace")[:400]
+                                yield nd({"type": "error", "page": i, "message": f"OCR HTTP {r.status_code}: {body}"})
+                                return
+                            async for line in r.aiter_lines():
+                                if not line.startswith("data:"):
+                                    continue
+                                d = line[5:].strip()
+                                if d == "[DONE]":
+                                    break
+                                try:
+                                    j = json.loads(d)
+                                except json.JSONDecodeError:
+                                    continue
+                                if j.get("timings"):
+                                    ctoks = j["timings"].get("predicted_n")
+                                ch = j.get("choices") or []
+                                if not ch:
+                                    continue
+                                finish = ch[0].get("finish_reason") or finish
+                                piece = (ch[0].get("delta") or {}).get("content")
+                                if piece:
+                                    text += piece
+                                    yield nd({"type": "delta", "index": i, "text": piece})
                 except httpx.ConnectError:
                     yield nd({"type": "error", "message": "اتصال به سرور OCR برقرار نشد. start_ocr.bat را اجرا کنید."})
                     return
@@ -253,9 +275,9 @@ async def ocr(file: UploadFile = File(...), prompt: str = Form("")):
                 sec = round(time.perf_counter() - tp, 2)
                 page_times.append(sec)
                 empty = not text.strip()
-                if empty:  # keep the raw reply for debugging blank OCR output
+                if empty:  # keep details for debugging blank OCR output
                     with open(LOGS / "ocr_raw.jsonl", "a", encoding="utf-8") as f:
-                        f.write(json.dumps({"file": saved.name, "page": i, "raw": json.dumps(jr, ensure_ascii=False)[:3000]}, ensure_ascii=False) + "\n")
+                        f.write(json.dumps({"file": saved.name, "page": i, "finish_reason": finish, "completion_tokens": ctoks}, ensure_ascii=False) + "\n")
                 yield nd({"type": "page", "index": i, "text": text, "seconds": sec, "empty": empty,
                           "finish_reason": finish, "completion_tokens": ctoks})
         total_s = round(time.perf_counter() - t0, 2)
