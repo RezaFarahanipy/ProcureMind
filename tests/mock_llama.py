@@ -1,14 +1,18 @@
 """Fake llama-server for testing the backend without real models.
 Usage: python -m uvicorn tests.mock_llama:app --port 18080
 """
-import asyncio, json
+import asyncio, json, os, time
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 
 app = FastAPI()
+T0 = time.time()
+DELAY = float(os.environ.get("LOAD_DELAY", "0"))  # simulate model loading time
 
 @app.get("/health")
 async def health():
+    if time.time() - T0 < DELAY:
+        return JSONResponse({"status": "loading"}, status_code=503)
     return {"status": "ok"}
 
 @app.post("/v1/chat/completions")

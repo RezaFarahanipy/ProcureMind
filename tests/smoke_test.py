@@ -28,7 +28,7 @@ img = Image.new("RGB", (800, 600), "white"); ImageDraw.Draw(img).text((50, 50), 
 buf = io.BytesIO(); img.save(buf, "PNG")
 def run_ocr(name, data):
     evs = []
-    with httpx.stream("POST", f"{BASE}/api/ocr", files={"file": (name, data)}, timeout=120) as r:
+    with httpx.stream("POST", f"{BASE}/api/ocr", files={"file": (name, data)}, data={"pages": "1-3", "mode": "ocr"}, timeout=120) as r:
         for line in r.iter_lines():
             if line.strip():
                 evs.append(json.loads(line))

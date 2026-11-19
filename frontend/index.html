@@ -51,6 +51,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 #ocrText{flex:1;min-height:180px;resize:none;line-height:1.9;width:100%}
 #ocrStatus{font-size:12px;color:var(--muted);min-height:18px}
+.models{display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.mcard{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mcard b{min-width:68px}
+.mcard select{max-width:340px}
+.mstat{font-size:12px;color:var(--muted)}
+.mstat.ready{color:var(--ok)} .mstat.failed{color:var(--bad)}
+#mErr{margin:0;font-size:11px;color:var(--bad);white-space:pre-wrap;max-height:90px;overflow:auto;direction:ltr;text-align:left}
 </style>
 </head>
 <body>
@@ -60,6 +67,25 @@ button:disabled{opacity:.5;cursor:not-allowed}
   <span class="pill"><span class="dot" id="dOcr"></span>OCR <span class="tech">:8081</span></span>
   <span class="pill" id="res"></span>
 </header>
+<div class="models">
+  <div class="mcard">
+    <b>مدل چت</b>
+    <select id="chatModel"></select>
+    <select id="chatCtx" title="طول context (کمتر = RAM کمتر)"><option value="2048">ctx 2048</option><option value="4096" selected>ctx 4096</option><option value="8192">ctx 8192</option></select>
+    <button id="chatLoad">بارگذاری</button><button class="sec" id="chatUnload">خاموش</button>
+    <span class="mstat" id="chatStat">—</span>
+  </div>
+  <div class="mcard">
+    <b>مدل OCR</b>
+    <select id="ocrModel"></select>
+    <select id="ocrMmproj" title="فایل mmproj (بخش بینایی)"></select>
+    <select id="ocrCtx" title="طول context"><option value="4096">ctx 4096</option><option value="8192" selected>ctx 8192</option><option value="16384">ctx 16384</option></select>
+    <button id="ocrLoad">بارگذاری</button><button class="sec" id="ocrUnload">خاموش</button>
+    <span class="mstat" id="ocrStat">—</span>
+  </div>
+  <label class="mstat"><input type="checkbox" id="keepBoth"> هر دو مدل هم‌زمان در RAM بمانند (حافظه زیاد لازم است؛ پیش‌فرض: با بارگذاری یکی، دیگری خاموش می‌شود)</label>
+  <pre id="mErr"></pre>
+</div>
 <main>
   <section>
     <h2>گفت‌وگو با Qwen <button class="sec" id="clear">پاک کردن</button></h2>
@@ -86,6 +112,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
         </select>
         <button id="ocrBtn">شروع OCR</button>
         <button id="ocrStop" class="sec" style="display:none">توقف</button>
+      </div>
+      <div class="row">
+        <input id="pages" value="1" size="9" title="مثلاً 1 یا 1-3,5 یا all (حداکثر ۱۰ صفحه در هر بار)" placeholder="صفحه‌ها">
+        <select id="pdfMode" title="اگر PDF متن واقعی دارد، خواندن مستقیم فوری است؛ اما برای فارسی گاهی ترتیب حروف به‌هم می‌ریزد">
+          <option value="auto">PDF: اگر لایه متنی دارد بدون OCR بخوان</option>
+          <option value="ocr">PDF: همیشه OCR</option>
+        </select>
+        <span id="pdfInfo" class="pill"></span>
       </div>
       <div id="ocrStatus"></div>
       <textarea id="ocrText" placeholder="متن استخراج‌شده اینجا نمایش داده می‌شود و قابل ویرایش است."></textarea>
@@ -170,7 +204,7 @@ $("ocrBtn").onclick = async () => {
   const ctrl = new AbortController();
   $("ocrBtn").disabled = true; $("ocrStop").style.display = ""; $("ocrStop").onclick = () => ctrl.abort();
   $("ocrText").value = ""; $("ocrStatus").textContent = "ارسال فایل…";
-  const fd = new FormData(); fd.append("file", f); fd.append("prompt", $("ocrPrompt").value); fd.append("max_tokens", $("ocrTokens").value);
+  const fd = new FormData(); fd.append("file", f); fd.append("prompt", $("ocrPrompt").value); fd.append("max_tokens", $("ocrTokens").value); fd.append("pages", $("pages").value || "1"); fd.append("mode", $("pdfMode").value);
   const parts = []; let cur = "", pages = 0, gotText = false; const t0 = Date.now();
   const sec = () => Math.round((Date.now() - t0) / 1000);
   const show = () => { $("ocrText").value = parts.concat(cur ? [cur] : []).join("\n\n"); $("ocrText").scrollTop = $("ocrText").scrollHeight; };
@@ -193,7 +227,7 @@ $("ocrBtn").onclick = async () => {
           parts.push(pages > 1 ? `--- صفحه ${ev.index} ---\n${ev.text}` : ev.text); show();
           $("ocrStatus").textContent = ev.empty
             ? `صفحه ${ev.index}: خروجی خالی بود (توکن تولیدشده: ${ev.completion_tokens}، دلیل توقف: ${ev.finish_reason}، ${ev.seconds} ثانیه)`
-            : `صفحه ${ev.index} از ${pages} تمام شد (${ev.seconds} ثانیه، دلیل توقف: ${ev.finish_reason})`;
+            : (ev.source === "text-layer" ? `صفحه ${ev.index}: از لایه متنی PDF خوانده شد (بدون OCR)` : `صفحه ${ev.index} از ${pages} تمام شد (${ev.seconds} ثانیه، دلیل توقف: ${ev.finish_reason})`);
         }
         else if (ev.type === "error") { $("ocrStatus").textContent = "خطا: " + ev.message; }
         else if (ev.type === "done") { $("ocrStatus").textContent += ` — کل ${ev.stats.total_s} ثانیه · RAM ${ev.stats.resources.ram_used_gb}GB`; }
@@ -210,6 +244,66 @@ async function poll(){
     $("res").textContent = `RAM ${h.resources.ram_used_gb}GB · CPU ${h.resources.cpu_percent}%`;
   } catch { $("dQwen").className = $("dOcr").className = "dot"; }
 }
+// ---------- model manager ----------
+function fillSelect(sel, list) {
+  const sig = list.map(x => x.file).join("|");
+  if (sel.dataset.sig === sig) return;
+  const cur = sel.value; sel.dataset.sig = sig; sel.innerHTML = "";
+  if (!list.length) { const o = document.createElement("option"); o.value = ""; o.textContent = "فایلی در پوشه models پیدا نشد"; sel.appendChild(o); return; }
+  for (const x of list) { const o = document.createElement("option"); o.value = x.file; o.textContent = `${x.file} (${x.size_gb} GB)`; sel.appendChild(o); }
+  if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+function showStat(id, s, errBox) {
+  const el = $(id); el.className = "mstat";
+  const t = {stopped: "خاموش", external: "از بیرون در حال اجراست (پنجره start_*.bat). برای انتخاب از اینجا آن را ببندید."}[s.state];
+  if (t) el.textContent = t;
+  else if (s.state === "starting") el.textContent = `در حال بارگذاری ${s.model}… ${s.elapsed_s} ثانیه`;
+  else if (s.state === "ready") { el.classList.add("ready"); el.textContent = `آماده ✓ ${s.model}` + (s.load_s ? ` · بارگذاری ${s.load_s} ثانیه` : ""); }
+  else if (s.state === "failed") { el.classList.add("failed"); el.textContent = `خطا (کد ${s.exit_code}) — ${s.model}`; errBox.push(s.log_tail || ""); }
+}
+async function refreshModels() {
+  try {
+    const m = await (await fetch("/api/models")).json();
+    fillSelect($("chatModel"), m.chat); fillSelect($("ocrModel"), m.ocr); fillSelect($("ocrMmproj"), m.mmproj);
+    const errs = []; showStat("chatStat", m.servers.chat, errs); showStat("ocrStat", m.servers.ocr, errs);
+    for (const [role, sel] of [["chat", "chatModel"], ["ocr", "ocrModel"]]) {
+      const s = m.servers[role];
+      if (s.model && !$(sel).dataset.touched) { const o = [...$(sel).options].find(o => o.value.split("/").pop() === s.model); if (o) $(sel).value = o.value; }
+    }
+    if (!$("mErr").dataset.manual) $("mErr").textContent = errs.join("\n");
+  } catch (e) { /* server restarting */ }
+}
+for (const id of ["chatModel", "ocrModel"]) $(id).addEventListener("change", () => { $(id).dataset.touched = "1"; });
+async function loadModel(role) {
+  const body = role === "chat"
+    ? {role, model: $("chatModel").value, ctx: +$("chatCtx").value}
+    : {role, model: $("ocrModel").value, mmproj: $("ocrMmproj").value, ctx: +$("ocrCtx").value};
+  body.unload_other = !$("keepBoth").checked;
+  const r = await fetch("/api/models/load", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  $("mErr").dataset.manual = r.ok ? "" : "1";
+  $("mErr").textContent = r.ok ? "" : ((await r.json()).detail || r.status);
+  refreshModels();
+}
+async function unloadModel(role) {
+  await fetch("/api/models/unload", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({role})});
+  $("mErr").dataset.manual = ""; refreshModels();
+}
+$("chatLoad").onclick = () => loadModel("chat"); $("ocrLoad").onclick = () => loadModel("ocr");
+$("chatUnload").onclick = () => unloadModel("chat"); $("ocrUnload").onclick = () => unloadModel("ocr");
+refreshModels(); setInterval(refreshModels, 3000);
+
+// PDF info (page count / text layer) when a file is chosen
+$("file").addEventListener("change", async () => {
+  const f = $("file").files[0]; $("pdfInfo").textContent = "";
+  if (!f || !/\.pdf$/i.test(f.name)) return;
+  $("pdfInfo").textContent = "در حال بررسی PDF…";
+  const fd = new FormData(); fd.append("file", f);
+  try {
+    const r = await fetch("/api/pdfinfo", {method: "POST", body: fd}); const j = await r.json();
+    $("pdfInfo").textContent = r.ok ? `${j.pages} صفحه · لایه متنی: ${j.has_text_layer ? "دارد (خواندن مستقیم ممکن است)" : "ندارد (اسکن؛ OCR لازم است)"} · هر صفحه OCR چند دقیقه طول می‌کشد` : (j.detail || "خطا");
+  } catch (e) { $("pdfInfo").textContent = ""; }
+});
+
 poll(); setInterval(poll, 5000);
 </script>
 </body>
