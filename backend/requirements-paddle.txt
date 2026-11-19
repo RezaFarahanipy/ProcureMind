@@ -1,0 +1,5 @@
+# Optional: third OCR engine (PaddleOCR). Install into the same .venv:
+#   pip install -r backend\requirements-paddle.txt
+# If pip cannot find a paddlepaddle build for your Python version, use Python 3.10-3.12.
+paddlepaddle
+paddleocr

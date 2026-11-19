@@ -27,6 +27,8 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
+from backend import paddle_engine as paddle
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -40,6 +42,8 @@ QWEN_THINKING = env("QWEN_THINKING", "0") == "1"
 OCR_PROMPT = env("OCR_PROMPT", "Extract the text content from this image.")
 OCR_MAX_SIDE = int(env("OCR_MAX_SIDE", "800"))  # smaller image = far fewer vision tokens = much faster on CPU
 OCR_PDF_DPI = int(env("OCR_PDF_DPI", "130"))
+PADDLE_PDF_DPI = int(env("PADDLE_PDF_DPI", "200"))  # classic OCR needs sharper pages than the vision-LLM
+PADDLE_MAX_SIDE = int(env("PADDLE_MAX_SIDE", "2200"))
 OCR_MAX_PAGES = int(env("OCR_MAX_PAGES", "10"))
 OCR_MAX_TOKENS = int(env("OCR_MAX_TOKENS", "1024"))
 OCR_TEMPERATURE = float(env("OCR_TEMPERATURE", "0.1"))  # greedy (0) tends to loop; 0.1 is the model authors' suggestion
@@ -364,7 +368,7 @@ def parse_pages(spec: str, total: int) -> list[int]:
     return sorted({n for n in nums if 1 <= n <= total})[:OCR_MAX_PAGES]
 
 
-def load_pages(data: bytes, filename: str, spec: str, mode: str) -> tuple[list[dict], int]:
+def load_pages(data: bytes, filename: str, spec: str, mode: str, dpi: int = 0) -> tuple[list[dict], int]:
     """Return (items, total pages). Each item: {index, image|None, text|None}.
     For PDFs in 'auto' mode, a page that already has a text layer is read directly (no OCR)."""
     if filename.lower().endswith(".pdf") or data[:4] == b"%PDF":
@@ -378,12 +382,23 @@ def load_pages(data: bytes, filename: str, spec: str, mode: str) -> tuple[list[d
                 if len(txt) >= 30:
                     items.append({"index": n, "image": None, "text": txt})
                     continue
-            pix = page.get_pixmap(dpi=OCR_PDF_DPI)
+            pix = page.get_pixmap(dpi=dpi or OCR_PDF_DPI)
             items.append({"index": n, "image": Image.frombytes("RGB", (pix.width, pix.height), pix.samples), "text": None})
         if not items:
             raise ValueError(f"شماره صفحه معتبر نیست (فایل {total} صفحه دارد)")
         return items, total
     return [{"index": 1, "image": Image.open(io.BytesIO(data)), "text": None}], 1
+
+
+@app.get("/api/paddle/status")
+async def paddle_status():
+    return paddle.status()
+
+
+@app.post("/api/paddle/unload")
+async def paddle_unload():
+    await asyncio.to_thread(paddle.unload)
+    return {"ok": True}
 
 
 @app.post("/api/pdfinfo")
@@ -399,7 +414,10 @@ async def pdfinfo(file: UploadFile = File(...)):
 
 @app.post("/api/ocr")
 async def ocr(file: UploadFile = File(...), prompt: str = Form(""), max_tokens: int = Form(0),
-              pages_spec: str = Form("1", alias="pages"), mode: str = Form("auto")):
+              pages_spec: str = Form("1", alias="pages"), mode: str = Form("auto"),
+              engine: str = Form("dots"), paddle_lang: str = Form("fa")):
+    if engine not in ("dots", "paddle"):
+        raise HTTPException(400, "engine باید dots یا paddle باشد")
     data = await file.read()
     if len(data) > MAX_UPLOAD_MB * 1024 * 1024:
         raise HTTPException(413, f"حداکثر حجم فایل {MAX_UPLOAD_MB}MB است")
@@ -412,18 +430,49 @@ async def ocr(file: UploadFile = File(...), prompt: str = Form(""), max_tokens: 
         yield nd({"type": "queued"})
         async with ocr_lock:
             try:
-                items, total = await asyncio.to_thread(load_pages, data, name, pages_spec, mode)
+                dpi = PADDLE_PDF_DPI if engine == "paddle" else OCR_PDF_DPI
+                items, total = await asyncio.to_thread(load_pages, data, name, pages_spec, mode, dpi)
             except Exception as e:  # noqa: BLE001
                 yield nd({"type": "error", "message": f"فایل خوانده نشد: {e}"})
                 return
-            yield nd({"type": "start", "pages": len(items), "total_pages": total, "file": saved.name})
+            yield nd({"type": "start", "pages": len(items), "total_pages": total, "file": saved.name, "engine": engine})
             page_times = []
+            if engine == "paddle" and any(it["text"] is None for it in items):
+                if not paddle.installed():
+                    yield nd({"type": "error", "message": "PaddleOCR نصب نیست. دستور: pip install -r backend\\requirements-paddle.txt"})
+                    return
+                yield nd({"type": "status", "message": f"بارگذاری مدل PaddleOCR ({paddle_lang})؛ بار اول ممکن است مدل‌ها از اینترنت دانلود شوند…"})
+                try:
+                    load_s, fresh = await asyncio.to_thread(paddle.load, paddle_lang)
+                except Exception as e:  # noqa: BLE001
+                    yield nd({"type": "error", "message": f"بارگذاری PaddleOCR ناموفق بود: {type(e).__name__}: {str(e)[:300]}"})
+                    return
+                if fresh:
+                    log_test({"kind": "model_load", "role": "paddle", "model": f"PaddleOCR-{paddle_lang}", "load_s": load_s, "resources": resources()})
+                yield nd({"type": "status", "message": f"PaddleOCR آماده است ({load_s} ثانیه)"})
             for item in items:
                 i, img = item["index"], item["image"]
                 if item["text"] is not None:  # PDF text layer: no OCR needed
                     page_times.append(0)
                     yield nd({"type": "page", "index": i, "text": item["text"], "seconds": 0, "empty": False,
                               "finish_reason": None, "completion_tokens": None, "source": "text-layer"})
+                    continue
+                if engine == "paddle":
+                    tp = time.perf_counter()
+                    w, h = img.size
+                    if max(w, h) > PADDLE_MAX_SIDE:
+                        k = PADDLE_MAX_SIDE / max(w, h)
+                        img = img.resize((int(w * k), int(h * k)), Image.LANCZOS)
+                    try:
+                        pr = await asyncio.to_thread(paddle.read, img)
+                    except Exception as e:  # noqa: BLE001
+                        yield nd({"type": "error", "page": i, "message": f"PaddleOCR: {type(e).__name__}: {str(e)[:300]}"})
+                        return
+                    sec = round(time.perf_counter() - tp, 2)
+                    page_times.append(sec)
+                    yield nd({"type": "page", "index": i, "text": pr["text"], "seconds": sec, "empty": not pr["text"].strip(),
+                              "finish_reason": None, "completion_tokens": None, "source": "paddle",
+                              "lines": pr["lines"], "mean_score": pr["mean_score"]})
                     continue
                 tp = time.perf_counter()
                 text, finish, ctoks = "", None, None
@@ -481,7 +530,8 @@ async def ocr(file: UploadFile = File(...), prompt: str = Form(""), max_tokens: 
                           "finish_reason": finish, "completion_tokens": ctoks})
         total_s = round(time.perf_counter() - t0, 2)
         stats = {"total_s": total_s, "page_seconds": page_times, "resources": resources()}
-        log_test({"kind": "ocr", "file": saved.name, "pages": len(items), "model": SERVERS["ocr"].get("model"), **stats})
+        log_test({"kind": "ocr", "engine": engine, "file": saved.name, "pages": len(items),
+                  "model": (f"PaddleOCR-{paddle_lang}" if engine == "paddle" else SERVERS["ocr"].get("model")), **stats})
         yield nd({"type": "done", "stats": stats})
 
     return StreamingResponse(gen(), media_type="application/x-ndjson")

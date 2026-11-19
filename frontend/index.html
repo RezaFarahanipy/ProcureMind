@@ -58,6 +58,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .mstat{font-size:12px;color:var(--muted)}
 .mstat.ready{color:var(--ok)} .mstat.failed{color:var(--bad)}
 #mErr{margin:0;font-size:11px;color:var(--bad);white-space:pre-wrap;max-height:90px;overflow:auto;direction:ltr;text-align:left}
+.tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -100,6 +101,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
     <div class="ocrbox">
       <div class="row">
         <input type="file" id="file" accept="image/*,.pdf">
+        <select id="ocrEngine" title="موتور OCR">
+          <option value="dots">موتور: Dots (مدل بینایی-زبانی)</option>
+          <option value="paddle">موتور: PaddleOCR (سریع، کلاسیک)</option>
+        </select>
+        <select id="paddleLang" title="زبان PaddleOCR" style="display:none">
+          <option value="fa">فارسی (fa)</option><option value="ar">عربی (ar)</option><option value="en">انگلیسی (en)</option>
+        </select>
         <select id="ocrPrompt">
           <option value="Extract the text content from this image.">فقط متن (پیش‌فرض)</option>
           <option value="Extract all text from this image and preserve structure in markdown.">متن با ساختار (مارک‌داون)</option>
@@ -122,6 +130,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
         <span id="pdfInfo" class="pill"></span>
       </div>
       <div id="ocrStatus"></div>
+      <div class="row tabs">
+        <button class="sec active" id="tabDots">نتیجه Dots</button>
+        <button class="sec" id="tabPaddle">نتیجه PaddleOCR</button>
+        <button class="sec" id="paddleUnload" style="display:none" title="آزاد کردن RAM مدل PaddleOCR">آزاد کردن Paddle</button>
+        <span id="cmpInfo" class="pill"></span>
+      </div>
       <textarea id="ocrText" placeholder="متن استخراج‌شده اینجا نمایش داده می‌شود و قابل ویرایش است."></textarea>
       <div class="row">
         <select id="task">
@@ -203,12 +217,13 @@ $("ocrBtn").onclick = async () => {
   const f = $("file").files[0]; if (!f) { $("ocrStatus").textContent = "ابتدا یک فایل انتخاب کنید."; return; }
   const ctrl = new AbortController();
   $("ocrBtn").disabled = true; $("ocrStop").style.display = ""; $("ocrStop").onclick = () => ctrl.abort();
+  const engine = $("ocrEngine").value; saveCurrent(); activeTab = engine; results[engine] = ""; styleTabs();
   $("ocrText").value = ""; $("ocrStatus").textContent = "ارسال فایل…";
-  const fd = new FormData(); fd.append("file", f); fd.append("prompt", $("ocrPrompt").value); fd.append("max_tokens", $("ocrTokens").value); fd.append("pages", $("pages").value || "1"); fd.append("mode", $("pdfMode").value);
+  const fd = new FormData(); fd.append("file", f); fd.append("prompt", $("ocrPrompt").value); fd.append("max_tokens", $("ocrTokens").value); fd.append("pages", $("pages").value || "1"); fd.append("engine", $("ocrEngine").value); fd.append("paddle_lang", $("paddleLang").value); fd.append("mode", $("pdfMode").value);
   const parts = []; let cur = "", pages = 0, gotText = false; const t0 = Date.now();
   const sec = () => Math.round((Date.now() - t0) / 1000);
   const show = () => { $("ocrText").value = parts.concat(cur ? [cur] : []).join("\n\n"); $("ocrText").scrollTop = $("ocrText").scrollHeight; };
-  const timer = setInterval(() => { if (!gotText && pages) $("ocrStatus").textContent = `در حال پردازش تصویر… ${sec()} ثانیه (روی CPU تا ظاهر شدن اولین کلمه چند دقیقه طبیعی است)`; }, 1000);
+  const timer = setInterval(() => { if (!gotText && pages) $("ocrStatus").textContent = engine === "paddle" ? `در حال OCR با PaddleOCR… ${sec()} ثانیه` : `در حال پردازش تصویر… ${sec()} ثانیه (روی CPU تا ظاهر شدن اولین کلمه چند دقیقه طبیعی است)`; }, 1000);
   try {
     const res = await fetch("/api/ocr", {method:"POST", body:fd, signal: ctrl.signal});
     if (!res.ok) throw new Error((await res.json()).detail || res.status);
@@ -221,20 +236,22 @@ $("ocrBtn").onclick = async () => {
         const ev = JSON.parse(line);
         if (ev.type === "queued") $("ocrStatus").textContent = "در صف پردازش…";
         else if (ev.type === "start") { pages = ev.pages; gotText = false; }
+        else if (ev.type === "status") { $("ocrStatus").textContent = ev.message; }
         else if (ev.type === "delta") { gotText = true; cur += ev.text; show(); $("ocrStatus").textContent = `در حال تولید متن: ${cur.length} کاراکتر · ${sec()} ثانیه`; }
         else if (ev.type === "page") {
           cur = ""; gotText = false;
           parts.push(pages > 1 ? `--- صفحه ${ev.index} ---\n${ev.text}` : ev.text); show();
           $("ocrStatus").textContent = ev.empty
             ? `صفحه ${ev.index}: خروجی خالی بود (توکن تولیدشده: ${ev.completion_tokens}، دلیل توقف: ${ev.finish_reason}، ${ev.seconds} ثانیه)`
-            : (ev.source === "text-layer" ? `صفحه ${ev.index}: از لایه متنی PDF خوانده شد (بدون OCR)` : `صفحه ${ev.index} از ${pages} تمام شد (${ev.seconds} ثانیه، دلیل توقف: ${ev.finish_reason})`);
+            : (ev.source === "paddle" ? `صفحه ${ev.index}: PaddleOCR — ${ev.lines} خط، اطمینان میانگین ${ev.mean_score}، ${ev.seconds} ثانیه` : ev.source === "text-layer" ? `صفحه ${ev.index}: از لایه متنی PDF خوانده شد (بدون OCR)` : `صفحه ${ev.index} از ${pages} تمام شد (${ev.seconds} ثانیه، دلیل توقف: ${ev.finish_reason})`);
         }
         else if (ev.type === "error") { $("ocrStatus").textContent = "خطا: " + ev.message; }
-        else if (ev.type === "done") { $("ocrStatus").textContent += ` — کل ${ev.stats.total_s} ثانیه · RAM ${ev.stats.resources.ram_used_gb}GB`; }
+        else if (ev.type === "done") { $("ocrStatus").textContent += ` — کل ${ev.stats.total_s} ثانیه · RAM ${ev.stats.resources.ram_used_gb}GB`; meta[engine] = ev.stats.total_s; }
       }
     }
   } catch (e) { $("ocrStatus").textContent = e.name === "AbortError" ? "متوقف شد (متن تولیدشده تا اینجا حفظ شد)." : "خطا: " + e; }
   clearInterval(timer); $("ocrStop").style.display = "none"; $("ocrBtn").disabled = false;
+  results[engine] = $("ocrText").value; styleTabs();
 };
 
 async function poll(){
@@ -303,6 +320,32 @@ $("file").addEventListener("change", async () => {
     $("pdfInfo").textContent = r.ok ? `${j.pages} صفحه · لایه متنی: ${j.has_text_layer ? "دارد (خواندن مستقیم ممکن است)" : "ندارد (اسکن؛ OCR لازم است)"} · هر صفحه OCR چند دقیقه طول می‌کشد` : (j.detail || "خطا");
   } catch (e) { $("pdfInfo").textContent = ""; }
 });
+
+// ---------- engine comparison tabs + PaddleOCR ----------
+const results = {dots: "", paddle: ""}, meta = {};
+let activeTab = "dots";
+function saveCurrent() { results[activeTab] = $("ocrText").value; }
+function styleTabs() {
+  $("tabDots").classList.toggle("active", activeTab === "dots");
+  $("tabPaddle").classList.toggle("active", activeTab === "paddle");
+  const p = []; if (meta.dots != null) p.push(`Dots: ${meta.dots} ثانیه`); if (meta.paddle != null) p.push(`Paddle: ${meta.paddle} ثانیه`);
+  $("cmpInfo").textContent = p.join(" · ");
+}
+function showTab(t) { saveCurrent(); activeTab = t; $("ocrText").value = results[t]; styleTabs(); }
+$("tabDots").onclick = () => showTab("dots"); $("tabPaddle").onclick = () => showTab("paddle");
+async function paddleInfo() {
+  const isP = $("ocrEngine").value === "paddle";
+  $("paddleLang").style.display = isP ? "" : "none"; $("paddleUnload").style.display = isP ? "" : "none";
+  $("ocrPrompt").style.display = $("ocrTokens").style.display = isP ? "none" : "";
+  if (!isP) return;
+  try {
+    const s = await (await fetch("/api/paddle/status")).json();
+    $("ocrStatus").textContent = !s.installed ? "PaddleOCR نصب نیست — دستور: pip install -r backend\\requirements-paddle.txt (داخل .venv)"
+      : (s.loaded ? `PaddleOCR بارگذاری شده است (${s.lang})` : "PaddleOCR نصب است؛ مدل با اولین OCR بارگذاری می‌شود (بار اول ممکن است از اینترنت دانلود کند).");
+  } catch (e) { /* ignore */ }
+}
+$("ocrEngine").addEventListener("change", paddleInfo);
+$("paddleUnload").onclick = async () => { await fetch("/api/paddle/unload", {method: "POST"}); paddleInfo(); };
 
 poll(); setInterval(poll, 5000);
 </script>
