@@ -509,6 +509,17 @@ async def paddle_unload():
     return {"ok": True}
 
 
+@app.post("/api/upload")
+async def upload(file: UploadFile = File(...)):
+    """Keep the original file (used when the text is entered manually)."""
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_MB * 1024 * 1024:
+        raise HTTPException(413, f"حداکثر حجم فایل {MAX_UPLOAD_MB}MB است")
+    saved = UPLOADS / f"{time.strftime('%Y%m%d-%H%M%S')}_{uuid.uuid4().hex[:6]}_{Path(file.filename or 'upload').name}"
+    saved.write_bytes(data)
+    return {"file": saved.name, "size": len(data)}
+
+
 @app.post("/api/pdfinfo")
 async def pdfinfo(file: UploadFile = File(...)):
     data = await file.read()
@@ -524,8 +535,8 @@ async def pdfinfo(file: UploadFile = File(...)):
 async def ocr(file: UploadFile = File(...), prompt: str = Form(""), max_tokens: int = Form(0),
               pages_spec: str = Form("1", alias="pages"), mode: str = Form("auto"),
               engine: str = Form("dots"), paddle_lang: str = Form("fa"), text_style: str = Form("layout")):
-    if engine not in ("dots", "paddle"):
-        raise HTTPException(400, "engine باید dots یا paddle باشد")
+    if engine not in ("dots", "paddle", "text"):
+        raise HTTPException(400, "engine باید dots یا paddle یا text باشد")
     data = await file.read()
     if len(data) > MAX_UPLOAD_MB * 1024 * 1024:
         raise HTTPException(413, f"حداکثر حجم فایل {MAX_UPLOAD_MB}MB است")
@@ -538,7 +549,7 @@ async def ocr(file: UploadFile = File(...), prompt: str = Form(""), max_tokens: 
         yield nd({"type": "queued"})
         async with ocr_lock:
             try:
-                dpi = PADDLE_PDF_DPI if engine == "paddle" else OCR_PDF_DPI
+                dpi = 20 if engine == "text" else (PADDLE_PDF_DPI if engine == "paddle" else OCR_PDF_DPI)
                 items, total = await asyncio.to_thread(load_pages, data, name, pages_spec, mode, dpi, text_style)
             except Exception as e:  # noqa: BLE001
                 yield nd({"type": "error", "message": f"فایل خوانده نشد: {e}"})
@@ -560,6 +571,11 @@ async def ocr(file: UploadFile = File(...), prompt: str = Form(""), max_tokens: 
                 yield nd({"type": "status", "message": f"PaddleOCR آماده است ({load_s} ثانیه)"})
             for item in items:
                 i, img = item["index"], item["image"]
+                if engine == "text" and item["text"] is None:  # text-layer-only method: never run OCR
+                    page_times.append(0)
+                    yield nd({"type": "page", "index": i, "text": "", "seconds": 0, "empty": True, "finish_reason": None,
+                              "completion_tokens": None, "source": "no-text-layer"})
+                    continue
                 if item["text"] is not None:  # PDF text layer: no OCR needed
                     page_times.append(0)
                     yield nd({"type": "page", "index": i, "text": item["text"], "seconds": 0, "empty": False,

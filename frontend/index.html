@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ProcureMind — تست چت و OCR</title>
+<title>ProcureMind</title>
 <style>
 /* فونت فقط در همین بخش تعریف می‌شود (:root --font-ui / --font-tech) */
 @font-face{font-family:"SG Kara FaNum";font-weight:300;src:url(fonts/SGKara-FaNum-Light.woff2) format("woff2")}
@@ -25,159 +25,159 @@
 html,body{height:100%;margin:0}
 body{font-family:var(--font-ui);background:var(--bg);color:var(--text);display:flex;flex-direction:column;font-size:15px}
 .tech,code,.ltr{font-family:var(--font-tech);direction:ltr;unicode-bidi:embed}
-header{display:flex;align-items:center;gap:16px;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header{display:flex;align-items:center;gap:14px;padding:9px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
 header h1{font-size:17px;margin:0;font-weight:700}
+header .sp{flex:1}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--bad)}
 .dot.ok{background:var(--ok)}
-main{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;min-height:0}
-@media (max-width:900px){main{grid-template-columns:1fr;overflow:auto}}
-section{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0}
-section>h2{font-size:14px;margin:0;padding:10px 14px;border-bottom:1px solid var(--line);font-weight:600;display:flex;justify-content:space-between;align-items:center}
-#log{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+button,select,input,textarea{font-family:inherit;font-size:14px;color:var(--text)}
+button{cursor:pointer;border:0;border-radius:8px;padding:7px 14px;background:var(--accent);color:#fff}
+button.sec{background:transparent;color:var(--text);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:not-allowed}
+select,input[type=text],textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.drawer{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-direction:column;gap:8px}
+.drawer[hidden]{display:none}
+.drow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.drow b{min-width:78px}
+.drow select{max-width:330px}
+.mstat{font-size:12px;color:var(--muted)}
+.mstat.ready{color:var(--ok)} .mstat.failed{color:var(--bad)}
+#mErr{margin:0;font-size:11px;color:var(--bad);white-space:pre-wrap;max-height:90px;overflow:auto;direction:ltr;text-align:left}
+#log{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px;align-items:center}
+#log>*{width:100%;max-width:880px}
+.empty{color:var(--muted);text-align:center;margin-top:60px;line-height:2}
 .msg{max-width:88%;padding:9px 13px;border-radius:12px;white-space:pre-wrap;line-height:1.9;word-break:break-word}
 .msg.user{background:var(--user);align-self:flex-start}
 .msg.assistant{background:var(--bot);align-self:flex-end}
 .msg.err{background:transparent;border:1px solid var(--bad);color:var(--bad)}
+.msgchip{display:inline-block;font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:1px 10px;margin-bottom:4px}
 .stat{font-size:11px;color:var(--muted);margin-top:6px}
-.reason{font-size:12px;color:var(--muted);border-inline-start:3px solid var(--line);padding-inline-start:8px;margin-bottom:6px}
-.composer{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
-textarea,input[type=file],select{font-family:inherit;font-size:14px;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px}
-.composer textarea{flex:1;resize:none;height:56px}
-button{font-family:inherit;font-size:14px;cursor:pointer;border:0;border-radius:8px;padding:8px 16px;background:var(--accent);color:#fff}
-button.sec{background:transparent;color:var(--text);border:1px solid var(--line)}
-button:disabled{opacity:.5;cursor:not-allowed}
-.ocrbox{padding:12px;display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-#ocrText{flex:1;min-height:180px;resize:none;line-height:1.9;width:100%}
-#ocrStatus{font-size:12px;color:var(--muted);min-height:18px}
-.models{display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
-.mcard{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.mcard b{min-width:68px}
-.mcard select{max-width:340px}
-.mstat{font-size:12px;color:var(--muted)}
-.mstat.ready{color:var(--ok)} .mstat.failed{color:var(--bad)}
-#mErr{margin:0;font-size:11px;color:var(--bad);white-space:pre-wrap;max-height:90px;overflow:auto;direction:ltr;text-align:left}
-.tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.chead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cmeta{font-size:12px;color:var(--muted);flex:1}
+.ctext{width:100%;min-height:150px;max-height:380px;resize:vertical;line-height:1.9}
+.cacts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.composer{background:var(--panel);border-top:1px solid var(--line);padding:10px 16px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.composer>*{width:100%;max-width:880px}
+.opts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px}
+.opts label{display:inline-flex;gap:6px;align-items:center;color:var(--muted)}
+.opts input[type=text]{width:70px}
+.chips:empty{display:none}
+.chip{display:inline-flex;gap:8px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 12px;font-size:13px}
+.chip button{padding:0 7px;border-radius:50%;background:transparent;color:var(--muted);border:0}
+.inputrow{display:flex;gap:8px;align-items:flex-end}
+.inputrow textarea{flex:1;resize:none;height:58px}
+.plus{width:40px;height:40px;border-radius:50%;padding:0;font-size:22px;line-height:1}
 </style>
 </head>
 <body>
 <header>
-  <h1>ProcureMind <span class="pill">نمونه اولیه فاز ۱: تست چت و OCR</span></h1>
-  <span class="pill"><span class="dot" id="dQwen"></span>Qwen <span class="tech">:8080</span></span>
-  <span class="pill"><span class="dot" id="dOcr"></span>OCR <span class="tech">:8081</span></span>
+  <h1>ProcureMind</h1>
+  <span class="pill"><span class="dot" id="dQwen"></span>مدل چت</span>
+  <span class="pill"><span class="dot" id="dOcr"></span>مدل OCR</span>
   <span class="pill" id="res"></span>
+  <span class="sp"></span>
+  <button class="sec" id="drawerBtn">⚙ مدل‌ها و تنظیمات</button>
+  <button class="sec" id="clear">گفتگوی جدید</button>
 </header>
-<div class="models">
-  <div class="mcard">
+
+<div class="drawer" id="drawer" hidden>
+  <div class="drow">
     <b>مدل چت</b>
-    <select id="chatModel"></select>
     <select id="chatCtx" title="طول context (کمتر = RAM کمتر)"><option value="2048">ctx 2048</option><option value="4096" selected>ctx 4096</option><option value="8192">ctx 8192</option></select>
-    <button id="chatLoad">بارگذاری</button><button class="sec" id="chatUnload">خاموش</button>
-    <span class="mstat" id="chatStat">—</span>
+    <button class="sec" id="chatUnload">خاموش</button>
+    <span class="mstat">(انتخاب مدل چت از نوار پایین صفحه)</span>
   </div>
-  <div class="mcard">
-    <b>مدل OCR</b>
+  <div class="drow">
+    <b>مدل Dots OCR</b>
     <select id="ocrModel"></select>
     <select id="ocrMmproj" title="فایل mmproj (بخش بینایی)"></select>
     <select id="ocrCtx" title="طول context"><option value="4096">ctx 4096</option><option value="8192" selected>ctx 8192</option><option value="16384">ctx 16384</option></select>
     <button id="ocrLoad">بارگذاری</button><button class="sec" id="ocrUnload">خاموش</button>
     <span class="mstat" id="ocrStat">—</span>
   </div>
-  <label class="mstat"><input type="checkbox" id="keepBoth"> هر دو مدل هم‌زمان در RAM بمانند (حافظه زیاد لازم است؛ پیش‌فرض: با بارگذاری یکی، دیگری خاموش می‌شود)</label>
+  <div class="drow">
+    <b>تنظیم Dots</b>
+    <select id="ocrPrompt">
+      <option value="Extract the text content from this image.">فقط متن (پیش‌فاکتور: پیش‌فرض)</option>
+      <option value="Extract all text from this image and preserve structure in markdown.">متن با ساختار (مارک‌داون)</option>
+    </select>
+    <select id="ocrTokens" title="حداکثر طول خروجی">
+      <option value="256">حداکثر ۲۵۶ توکن</option><option value="512" selected>حداکثر ۵۱۲ توکن</option>
+      <option value="1024">حداکثر ۱۰۲۴ توکن</option><option value="2048">حداکثر ۲۰۴۸ توکن</option>
+    </select>
+  </div>
+  <div class="drow">
+    <b>PaddleOCR</b>
+    <select id="paddleLang"><option value="fa">فارسی (fa)</option><option value="ar">عربی (ar)</option><option value="en">انگلیسی (en)</option></select>
+    <button class="sec" id="paddleUnload">آزاد کردن حافظه</button>
+    <span class="mstat" id="paddleStat"></span>
+  </div>
+  <label class="mstat"><input type="checkbox" id="keepBoth"> هر دو مدل (چت و OCR) هم‌زمان در RAM بمانند (حافظه زیاد لازم است؛ پیش‌فرض: با بارگذاری یکی، دیگری خاموش می‌شود)</label>
   <pre id="mErr"></pre>
 </div>
-<main>
-  <section>
-    <h2>گفت‌وگو با Qwen <button class="sec" id="clear">پاک کردن</button></h2>
-    <div id="log"></div>
-    <div class="composer">
-      <textarea id="input" placeholder="پیام خود را بنویسید… (Enter = ارسال، Shift+Enter = خط جدید)"></textarea>
-      <button id="send">ارسال</button>
-    </div>
-  </section>
-  <section>
-    <h2>OCR با Dots</h2>
-    <div class="ocrbox">
-      <div class="row">
-        <input type="file" id="file" accept="image/*,.pdf">
-        <select id="ocrEngine" title="موتور OCR">
-          <option value="dots">موتور: Dots (مدل بینایی-زبانی)</option>
-          <option value="paddle">موتور: PaddleOCR (سریع، کلاسیک)</option>
-        </select>
-        <select id="paddleLang" title="زبان PaddleOCR" style="display:none">
-          <option value="fa">فارسی (fa)</option><option value="ar">عربی (ar)</option><option value="en">انگلیسی (en)</option>
-        </select>
-        <select id="ocrPrompt">
-          <option value="Extract the text content from this image.">فقط متن (پیش‌فرض)</option>
-          <option value="Extract all text from this image and preserve structure in markdown.">متن با ساختار (مارک‌داون)</option>
-        </select>
-        <select id="ocrTokens" title="حداکثر طول خروجی">
-          <option value="256">حداکثر ۲۵۶ توکن</option>
-          <option value="512" selected>حداکثر ۵۱۲ توکن</option>
-          <option value="1024">حداکثر ۱۰۲۴ توکن</option>
-          <option value="2048">حداکثر ۲۰۴۸ توکن</option>
-        </select>
-        <button id="ocrBtn">شروع OCR</button>
-        <button id="ocrStop" class="sec" style="display:none">توقف</button>
-      </div>
-      <div class="row">
-        <input id="pages" value="1" size="9" title="مثلاً 1 یا 1-3,5 یا all (حداکثر ۱۰ صفحه در هر بار)" placeholder="صفحه‌ها">
-        <select id="pdfMode" title="اگر PDF متن واقعی دارد، خواندن مستقیم فوری است؛ اما برای فارسی گاهی ترتیب حروف به‌هم می‌ریزد">
-          <option value="auto">PDF: اگر لایه متنی دارد بدون OCR بخوان</option>
-          <option value="ocr">PDF: همیشه OCR</option>
-        </select>
-        <select id="pdfStyle" title="روش خواندن لایه متنی PDF">
-          <option value="layout">لایه متنی: مرتب‌شده (راست‌به‌چپ + ستون‌های جدول)</option>
-          <option value="raw">لایه متنی: خام</option>
-        </select>
-        <span id="pdfInfo" class="pill"></span>
-      </div>
-      <div id="ocrStatus"></div>
-      <div class="row tabs">
-        <button class="sec active" id="tabDots">نتیجه Dots</button>
-        <button class="sec" id="tabPaddle">نتیجه PaddleOCR</button>
-        <button class="sec" id="paddleUnload" style="display:none" title="آزاد کردن RAM مدل PaddleOCR">آزاد کردن Paddle</button>
-        <span id="cmpInfo" class="pill"></span>
-      </div>
-      <textarea id="ocrText" placeholder="متن استخراج‌شده اینجا نمایش داده می‌شود و قابل ویرایش است. می‌توانید متن را از بیرون (مثلاً Google Lens) هم اینجا بچسبانید."></textarea>
-      <div class="row">
-        <select id="task">
-          <option value="summary">خلاصه ساختاریافته</option>
-          <option value="proforma">استخراج اطلاعات پیش‌فاکتور (JSON)</option>
-          <option value="request">استخراج اطلاعات درخواست خرید (JSON)</option>
-          <option value="free">فقط متن را بفرست (سؤال را خودم در چت می‌نویسم)</option>
-        </select>
-        <button class="sec" id="normBtn" title="ارقام فارسی/عربی به لاتین، ي و ك عربی به ی و ک، شکل‌های نمایشی حروف به استاندارد">نرمال‌سازی متن</button>
-        <button id="toQwen">ارسال متن اصلاح‌شده به Qwen</button>
-      </div>
-    </div>
-  </section>
-</main>
+
+<main id="log"></main>
+
+<footer class="composer">
+  <div class="chips" id="chips"></div>
+  <div class="opts">
+    <label>مدل چت <select id="chatModel"></select></label>
+    <button class="sec" id="chatLoad">بارگذاری</button>
+    <span class="mstat" id="chatStat">—</span>
+  </div>
+  <div class="opts">
+    <label>خواندن فایل
+      <select id="method" title="روش استخراج متن از فایل پیوست‌شده">
+        <option value="text">لایه متنی PDF (فوری؛ برای PDF دیجیتال)</option>
+        <option value="manual">دستی (متن را خودم می‌چسبانم، مثلاً از Google Lens)</option>
+        <option value="dots">Dots OCR (کند)</option>
+        <option value="paddle">PaddleOCR (سریع؛ فارسی ضعیف)</option>
+      </select>
+    </label>
+    <span id="pdfOpts" hidden>
+      <label>صفحه‌ها <input type="text" id="pages" value="1" title="مثلاً 1 یا 1-3,5 یا all (حداکثر ۱۰ صفحه)"></label>
+      <select id="textStyle" title="روش خواندن لایه متنی">
+        <option value="layout">لایه متنی: مرتب‌شده (راست‌به‌چپ + جدول)</option>
+        <option value="raw">لایه متنی: خام</option>
+      </select>
+    </span>
+    <label><input type="checkbox" id="autoAnalyze" checked> تحلیل خودکار بعد از استخراج</label>
+  </div>
+  <div class="inputrow">
+    <button class="plus" id="plus" title="پیوست فایل (تصویر یا PDF)">+</button>
+    <input type="file" id="file" accept="image/*,.pdf" hidden>
+    <textarea id="input" placeholder="پیام بنویسید… با «+» تصویر یا PDF پیوست کنید (Enter = ارسال، Shift+Enter = خط جدید)"></textarea>
+    <button id="send">ارسال</button>
+  </div>
+</footer>
+
 <script>
 const $ = id => document.getElementById(id);
-const history = [{role:"system", content:"تو دستیار هوشمند بخش تدارکات و بازرگانی هستی. به فارسی، دقیق و مختصر پاسخ بده. اگر اطلاعاتی در متن نیست، حدس نزن و بگو موجود نیست."}];
+const SYSTEM = {role: "system", content: "تو دستیار هوشمند بخش تدارکات و بازرگانی هستی. به فارسی، دقیق و مختصر پاسخ بده. اگر اطلاعاتی در متن نیست، حدس نزن و بگو موجود نیست."};
+let history = [SYSTEM], attached = null, busy = false, autoTouched = false;
+
 const PROMPTS = {
-  summary:"متن زیر خروجی OCR یک سند است. آن را به صورت خلاصه ساختاریافته (نوع سند، شماره و تاریخ، طرفین، اقلام، مبالغ، نکات مهم) بنویس:",
-  proforma:"متن زیر یک پیش‌فاکتور فارسی است؛ ستون‌های جدول با | جدا شده‌اند. فقط یک JSON فشرده در یک خط (بدون فاصله اضافه و بدون توضیح) با این کلیدها برگردان: seller, buyer, number, date, currency, items[{row,code,name,qty,unit,sub_qty,sub_unit,unit_price,total}], total_before_tax, tax, grand_total, payment_terms, delivery_time, validity. قواعد: qty و unit همان «مقدار اصلی» و واحد آن هستند و فی (unit_price) به ازای همین واحد اصلی است؛ «مقدار فرعی» و «واحد فرعی» را در sub_qty و sub_unit بنویس. کد کالا را در code بگذار و داخل name تکرار نکن. همه اعداد را بدون ویرگول و به‌صورت عدد بنویس. مقدار نامشخص را null بگذار. هیچ عددی را حدس نزن و خودت محاسبه نکن:",
-  request:"متن زیر خروجی OCR یک درخواست خرید است. فقط یک JSON با کلیدهای number, date, project, requester, priority, items[{name,spec,qty,unit}], notes برگردان. مقدار نامشخص را null بگذار:",
-  free:""
+  summary: "متن زیر خروجی یک سند است. آن را به صورت خلاصه ساختاریافته (نوع سند، شماره و تاریخ، طرفین، اقلام، مبالغ، نکات مهم) بنویس:",
+  proforma: "متن زیر یک پیش‌فاکتور فارسی است؛ ستون‌های جدول با | جدا شده‌اند. فقط یک JSON فشرده در یک خط (بدون فاصله اضافه و بدون توضیح) با این کلیدها برگردان: seller, buyer, number, date, currency, items[{row,code,name,qty,unit,sub_qty,sub_unit,unit_price,total}], total_before_tax, tax, grand_total, payment_terms, delivery_time, validity. قواعد: qty و unit همان «مقدار اصلی» و واحد آن هستند و فی (unit_price) به ازای همین واحد اصلی است؛ «مقدار فرعی» و «واحد فرعی» را در sub_qty و sub_unit بنویس. کد کالا را در code بگذار و داخل name تکرار نکن. همه اعداد را بدون ویرگول و به‌صورت عدد بنویس. مقدار نامشخص را null بگذار. هیچ عددی را حدس نزن و خودت محاسبه نکن:",
+  request: "متن زیر یک درخواست خرید است. فقط یک JSON فشرده با کلیدهای number, date, project, requester, priority, items[{name,spec,qty,unit}], notes برگردان. مقدار نامشخص را null بگذار:"
 };
-let busy = false;
+const TASKS = {ask: "پرسش من", summary: "خلاصه ساختاریافته", proforma: "JSON پیش‌فاکتور", request: "JSON درخواست خرید"};
 
-function addMsg(role, text){
-  const d = document.createElement("div");
-  d.className = "msg " + role; d.dir = "auto"; d.textContent = text;
-  $("log").appendChild(d); $("log").scrollTop = $("log").scrollHeight; return d;
+// ---------- helpers ----------
+function normalizeFa(s) {
+  const dig = {"۰":"0","۱":"1","۲":"2","۳":"3","۴":"4","۵":"5","۶":"6","۷":"7","۸":"8","۹":"9","٠":"0","١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9"};
+  return s.normalize("NFKC").replace(/[۰-۹٠-٩]/g, d => dig[d]).replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/ـ/g, "")
+          .replace(/٬/g, ",").replace(/٫/g, ".").replace(/[ \t]+\n/g, "\n");
 }
-function statLine(s){
-  const parts = [`${s.total_s} ثانیه`];
-  if (s.first_token_s != null) parts.push(`اولین توکن ${s.first_token_s}`);
-  if (s.tokens_per_s != null) parts.push(`${s.tokens_per_s} توکن/ثانیه`);
-  if (s.resources) parts.push(`RAM ${s.resources.ram_used_gb}GB`, `CPU ${s.resources.cpu_percent}%`);
-  return parts.join(" · ");
+function statLine(s) {
+  const p = [`${s.total_s} ثانیه`];
+  if (s.first_token_s != null) p.push(`اولین توکن ${s.first_token_s}`);
+  if (s.tokens_per_s != null) p.push(`${s.tokens_per_s} توکن/ثانیه`);
+  if (s.resources) p.push(`RAM ${s.resources.ram_used_gb}GB`, `CPU ${s.resources.cpu_percent}%`);
+  return p.join(" · ");
 }
-
 function checkInvoice(text) {
   if (!/"items"/.test(text)) return null;
   const m = text.match(/\{[\s\S]*\}/); if (!m) return "⚠ بررسی خودکار: JSON ناتمام ماند؛ حداکثر توکن را بیشتر کنید.";
@@ -200,96 +200,184 @@ function checkInvoice(text) {
   if (bad.length) return "⚠ بررسی خودکار حساب‌ها:\n" + bad.join("\n");
   return done.length ? "✓ بررسی خودکار: حساب‌های قابل بررسی (ضرب ردیف‌ها و جمع‌ها) می‌خوانند." : null;
 }
+function scrollDown() { const l = $("log"); l.scrollTop = l.scrollHeight; }
+function clearEmpty() { const e = $("log").querySelector(".empty"); if (e) e.remove(); }
+function showEmpty() { $("log").innerHTML = '<div class="empty">سلام! یک پیام بنویسید یا با «+» پیش‌فاکتور (PDF یا عکس) پیوست کنید.<br>ابتدا از «⚙ مدل‌ها و تنظیمات» و نوار پایین مدل‌ها را بارگذاری کنید.</div>'; }
+function addMsg(role, text, chipText) {
+  clearEmpty();
+  const d = document.createElement("div"); d.className = "msg " + role; d.dir = "auto";
+  if (chipText) { const c = document.createElement("div"); c.className = "msgchip"; c.textContent = "📎 " + chipText; d.appendChild(c); d.appendChild(document.createElement("br")); }
+  const t = document.createElement("span"); t.className = "mtext"; t.textContent = text; d.appendChild(t);
+  $("log").appendChild(d); scrollDown(); return d;
+}
+function setBusy(b) { busy = b; $("send").disabled = b; }
 
-async function send(text){
-  if (busy || !text.trim()) return;
-  busy = true; $("send").disabled = $("toQwen").disabled = true;
-  history.push({role:"user", content:text});
-  addMsg("user", text);
-  const box = addMsg("assistant", "…");
-  let out = "", reasoning = "", rBox = null, statEl = null;
+// ---------- chat with the model ----------
+async function askModel({prompt, bubble, maxTokens = 1024, fresh = false}) {
+  if (busy) return false;
+  setBusy(true);
+  if (bubble) addMsg("user", bubble);
+  const msgs = fresh ? [SYSTEM, {role: "user", content: prompt}] : [...history, {role: "user", content: prompt}];
+  const box = addMsg("assistant", "…"), txt = box.querySelector(".mtext");
+  let out = "";
   try {
-    const res = await fetch("/api/chat", {method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({messages: history})});
+    const res = await fetch("/api/chat", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({messages: msgs, max_tokens: maxTokens})});
     const reader = res.body.getReader(), dec = new TextDecoder(); let buf = "";
     while (true) {
       const {value, done} = await reader.read(); if (done) break;
-      buf += dec.decode(value, {stream:true});
+      buf += dec.decode(value, {stream: true});
       let i; while ((i = buf.indexOf("\n\n")) >= 0) {
-        const line = buf.slice(0, i).trim(); buf = buf.slice(i+2);
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 2);
         if (!line.startsWith("data:")) continue;
         const ev = JSON.parse(line.slice(5));
-        if (ev.type === "delta") { out += ev.text; box.textContent = out; }
-        else if (ev.type === "reasoning") { reasoning += ev.text; }
-        else if (ev.type === "error") { box.className = "msg err"; box.textContent = ev.message; }
-        else if (ev.type === "done") { statEl = document.createElement("div"); statEl.className = "stat"; statEl.textContent = statLine(ev.stats); box.appendChild(statEl); }
-        $("log").scrollTop = $("log").scrollHeight;
+        if (ev.type === "delta") { out += ev.text; txt.textContent = out; }
+        else if (ev.type === "error") { box.className = "msg err"; txt.textContent = ev.message; }
+        else if (ev.type === "done") { const s = document.createElement("div"); s.className = "stat"; s.textContent = statLine(ev.stats); box.appendChild(s); }
+        scrollDown();
       }
     }
-    if (out) history.push({role:"assistant", content:out}); else history.pop();
-    if (out) { const c = checkInvoice(out); if (c) { const d = document.createElement("div"); d.className = "stat"; d.style.whiteSpace = "pre-wrap"; d.textContent = c; box.appendChild(d); } }
-  } catch (e) { box.className = "msg err"; box.textContent = "خطای ارتباط: " + e; history.pop(); }
-  busy = false; $("send").disabled = $("toQwen").disabled = false;
+    if (out) {
+      history.push({role: "user", content: prompt}, {role: "assistant", content: out});
+      const c = checkInvoice(out);
+      if (c) { const d = document.createElement("div"); d.className = "stat"; d.style.whiteSpace = "pre-wrap"; d.textContent = c; box.appendChild(d); }
+    }
+  } catch (e) { box.className = "msg err"; txt.textContent = "خطای ارتباط: " + e; }
+  setBusy(false);
+  return !!out;
 }
 
-$("send").onclick = () => { const t = $("input").value; $("input").value = ""; send(t); };
-$("input").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("send").click(); } });
-$("clear").onclick = () => { history.length = 1; $("log").innerHTML = ""; };
+// ---------- attachment ----------
+function clearAttachment() { attached = null; $("chips").innerHTML = ""; $("pdfOpts").hidden = true; $("file").value = ""; }
+async function attach(file) {
+  attached = file;
+  const chip = document.createElement("span"); chip.className = "chip";
+  const label = document.createElement("span"); label.textContent = `📎 ${file.name} (${Math.max(1, Math.round(file.size / 1024))} KB)`;
+  const x = document.createElement("button"); x.textContent = "✕"; x.title = "حذف پیوست"; x.onclick = clearAttachment;
+  chip.append(label, x); $("chips").innerHTML = ""; $("chips").appendChild(chip);
+  const isPdf = /\.pdf$/i.test(file.name);
+  $("pdfOpts").hidden = !isPdf;
+  if (!isPdf && $("method").value === "text") { $("method").value = "manual"; syncAuto(); label.textContent += " — عکس لایه متنی ندارد؛ روش «دستی» انتخاب شد"; }
+  if (isPdf) {
+    try {
+      const fd = new FormData(); fd.append("file", file);
+      const r = await fetch("/api/pdfinfo", {method: "POST", body: fd}); const j = await r.json();
+      if (r.ok) {
+        label.textContent += ` — ${j.pages} صفحه، لایه متنی: ${j.has_text_layer ? "دارد" : "ندارد (اسکن)"}`;
+        if (!j.has_text_layer && $("method").value === "text") { $("method").value = "manual"; syncAuto(); label.textContent += " ← روش «دستی» انتخاب شد"; }
+      }
+    } catch (e) { /* ignore */ }
+  }
+}
+$("plus").onclick = () => $("file").click();
+$("file").onchange = () => { const f = $("file").files[0]; if (f) attach(f); };
+function syncAuto() { if (!autoTouched) $("autoAnalyze").checked = $("method").value === "text"; }
+$("autoAnalyze").onchange = () => { autoTouched = true; };
+$("method").onchange = syncAuto;
 
-$("toQwen").onclick = () => {
-  const txt = $("ocrText").value.trim(); if (!txt) return;
-  const p = PROMPTS[$("task").value];
-  send(p ? `${p}\n\n---\n${txt}` : txt);
-};
-
-$("ocrBtn").onclick = async () => {
-  const f = $("file").files[0]; if (!f) { $("ocrStatus").textContent = "ابتدا یک فایل انتخاب کنید."; return; }
-  const ctrl = new AbortController();
-  $("ocrBtn").disabled = true; $("ocrStop").style.display = ""; $("ocrStop").onclick = () => ctrl.abort();
-  const engine = $("ocrEngine").value; saveCurrent(); activeTab = engine; results[engine] = ""; styleTabs();
-  $("ocrText").value = ""; $("ocrStatus").textContent = "ارسال فایل…";
-  const fd = new FormData(); fd.append("file", f); fd.append("prompt", $("ocrPrompt").value); fd.append("max_tokens", $("ocrTokens").value); fd.append("pages", $("pages").value || "1"); fd.append("engine", $("ocrEngine").value); fd.append("text_style", $("pdfStyle").value); fd.append("paddle_lang", $("paddleLang").value); fd.append("mode", $("pdfMode").value);
-  const parts = []; let cur = "", pages = 0, gotText = false; const t0 = Date.now();
+// ---------- extraction cards ----------
+function buildPrompt(task, text, msg) {
+  if (task === "ask") return (msg || "متن زیر را بررسی کن و نکات مهم آن را بگو:") + "\n\n---\n" + text;
+  return PROMPTS[task] + "\n\n---\n" + text;
+}
+function createCard(file, method, msg) {
+  clearEmpty();
+  const el = document.createElement("div"); el.className = "card";
+  const names = {text: "لایه متنی PDF", manual: "دستی", dots: "Dots OCR", paddle: "PaddleOCR"};
+  el.innerHTML = '<div class="chead"><b></b><span class="cmeta"></span><button class="sec stop" hidden>توقف</button></div><textarea class="ctext" dir="auto"></textarea><div class="cacts"><select class="task"></select><button class="analyze">ارسال به مدل</button><button class="sec norm">نرمال‌سازی متن</button><button class="sec copy">کپی</button></div>';
+  el.querySelector("b").textContent = `📄 ${file.name} — ${names[method]}`;
+  const ta = el.querySelector(".ctext"), meta = el.querySelector(".cmeta"), stop = el.querySelector(".stop"), sel = el.querySelector(".task");
+  for (const [k, v] of Object.entries(TASKS)) { const o = document.createElement("option"); o.value = k; o.textContent = v; sel.appendChild(o); }
+  sel.value = msg ? "ask" : "summary";
+  const card = {el, ta, msg, file, method, setStatus: t => { meta.textContent = t; }, stop, ctrl: null};
+  el.querySelector(".norm").onclick = () => { ta.value = normalizeFa(ta.value); card.setStatus("متن نرمال‌سازی شد."); };
+  el.querySelector(".copy").onclick = () => navigator.clipboard && navigator.clipboard.writeText(ta.value);
+  el.querySelector(".analyze").onclick = () => analyze(card, false);
+  card.task = sel;
+  $("log").appendChild(el); scrollDown();
+  return card;
+}
+async function analyze(card, auto) {
+  const txt = card.ta.value.trim();
+  if (!txt) { card.setStatus("متنی برای ارسال نیست؛ ابتدا متن را وارد یا استخراج کنید."); return; }
+  const task = card.task.value;
+  const bubble = auto ? null : (task === "ask" && card.msg ? card.msg : `▶ ${TASKS[task]}`);
+  card.setStatus("در حال ارسال به مدل…");
+  await askModel({prompt: buildPrompt(task, txt, card.msg), bubble, maxTokens: (task === "proforma" || task === "request") ? 2048 : 1024, fresh: true});
+  card.setStatus("تحلیل انجام شد؛ می‌توانید متن را اصلاح و دوباره ارسال کنید.");
+}
+async function runExtraction(card) {
+  const {file, method} = card;
+  const ctrl = new AbortController(); card.ctrl = ctrl; card.stop.hidden = false; card.stop.onclick = () => ctrl.abort();
+  const fd = new FormData(); fd.append("file", file);
+  fd.append("engine", method); fd.append("mode", method === "text" ? "auto" : "ocr");
+  fd.append("pages", $("pages").value || "1"); fd.append("text_style", $("textStyle").value);
+  fd.append("paddle_lang", $("paddleLang").value); fd.append("prompt", $("ocrPrompt").value); fd.append("max_tokens", $("ocrTokens").value);
+  const parts = []; let cur = "", pages = 0, gotText = false, noLayer = false, failed = false; const t0 = Date.now();
   const sec = () => Math.round((Date.now() - t0) / 1000);
-  const show = () => { $("ocrText").value = parts.concat(cur ? [cur] : []).join("\n\n"); $("ocrText").scrollTop = $("ocrText").scrollHeight; };
-  const timer = setInterval(() => { if (!gotText && pages) $("ocrStatus").textContent = engine === "paddle" ? `در حال OCR با PaddleOCR… ${sec()} ثانیه` : `در حال پردازش تصویر… ${sec()} ثانیه (روی CPU تا ظاهر شدن اولین کلمه چند دقیقه طبیعی است)`; }, 1000);
+  const show = () => { card.ta.value = parts.concat(cur ? [cur] : []).join("\n\n"); card.ta.scrollTop = card.ta.scrollHeight; };
+  const timer = setInterval(() => { if (!gotText && pages && method !== "text") card.setStatus(method === "paddle" ? `در حال OCR با PaddleOCR… ${sec()} ثانیه` : `در حال پردازش تصویر… ${sec()} ثانیه (روی CPU تا اولین کلمه چند دقیقه طبیعی است)`); }, 1000);
+  card.setStatus("ارسال فایل…");
   try {
-    const res = await fetch("/api/ocr", {method:"POST", body:fd, signal: ctrl.signal});
+    const res = await fetch("/api/ocr", {method: "POST", body: fd, signal: ctrl.signal});
     if (!res.ok) throw new Error((await res.json()).detail || res.status);
     const reader = res.body.getReader(), dec = new TextDecoder(); let buf = "";
     while (true) {
       const {value, done} = await reader.read(); if (done) break;
-      buf += dec.decode(value, {stream:true});
+      buf += dec.decode(value, {stream: true});
       let i; while ((i = buf.indexOf("\n")) >= 0) {
-        const line = buf.slice(0, i).trim(); buf = buf.slice(i+1); if (!line) continue;
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (!line) continue;
         const ev = JSON.parse(line);
-        if (ev.type === "queued") $("ocrStatus").textContent = "در صف پردازش…";
+        if (ev.type === "queued") card.setStatus("در صف پردازش…");
         else if (ev.type === "start") { pages = ev.pages; gotText = false; }
-        else if (ev.type === "status") { $("ocrStatus").textContent = ev.message; }
-        else if (ev.type === "delta") { gotText = true; cur += ev.text; show(); $("ocrStatus").textContent = `در حال تولید متن: ${cur.length} کاراکتر · ${sec()} ثانیه`; }
+        else if (ev.type === "status") card.setStatus(ev.message);
+        else if (ev.type === "delta") { gotText = true; cur += ev.text; show(); card.setStatus(`در حال تولید متن: ${cur.length} کاراکتر · ${sec()} ثانیه`); }
         else if (ev.type === "page") {
           cur = ""; gotText = false;
+          if (ev.source === "no-text-layer") { noLayer = true; card.setStatus(`صفحه ${ev.index}: لایه متنی ندارد (اسکن یا عکس است)`); continue; }
           parts.push(pages > 1 ? `--- صفحه ${ev.index} ---\n${ev.text}` : ev.text); show();
-          $("ocrStatus").textContent = ev.empty
-            ? `صفحه ${ev.index}: خروجی خالی بود (توکن تولیدشده: ${ev.completion_tokens}، دلیل توقف: ${ev.finish_reason}، ${ev.seconds} ثانیه)`
-            : (ev.source === "paddle" ? `صفحه ${ev.index}: PaddleOCR — ${ev.lines} خط، اطمینان میانگین ${ev.mean_score}، ${ev.seconds} ثانیه` : ev.source === "text-layer" ? `صفحه ${ev.index}: از لایه متنی PDF خوانده شد (بدون OCR)` : `صفحه ${ev.index} از ${pages} تمام شد (${ev.seconds} ثانیه، دلیل توقف: ${ev.finish_reason})`);
+          card.setStatus(ev.source === "paddle" ? `صفحه ${ev.index}: PaddleOCR — ${ev.lines} خط، اطمینان میانگین ${ev.mean_score}، ${ev.seconds} ثانیه`
+            : ev.source === "text-layer" ? `صفحه ${ev.index}: از لایه متنی PDF خوانده شد`
+            : ev.empty ? `صفحه ${ev.index}: خروجی خالی بود (توکن: ${ev.completion_tokens}، دلیل توقف: ${ev.finish_reason})`
+            : `صفحه ${ev.index} از ${pages} تمام شد (${ev.seconds} ثانیه)`);
         }
-        else if (ev.type === "error") { $("ocrStatus").textContent = "خطا: " + ev.message; }
-        else if (ev.type === "done") { $("ocrStatus").textContent += ` — کل ${ev.stats.total_s} ثانیه · RAM ${ev.stats.resources.ram_used_gb}GB`; meta[engine] = ev.stats.total_s; }
+        else if (ev.type === "error") {
+          failed = true; card.setStatus("خطا: " + ev.message);
+          if (/مدل OCR آماده نیست/.test(ev.message)) $("drawer").hidden = false;
+        }
+        else if (ev.type === "done") card.setStatus(card.el.querySelector(".cmeta").textContent + ` — کل ${ev.stats.total_s} ثانیه`);
       }
     }
-  } catch (e) { $("ocrStatus").textContent = e.name === "AbortError" ? "متوقف شد (متن تولیدشده تا اینجا حفظ شد)." : "خطا: " + e; }
-  clearInterval(timer); $("ocrStop").style.display = "none"; $("ocrBtn").disabled = false;
-  results[engine] = $("ocrText").value; styleTabs();
-};
-
-async function poll(){
-  try {
-    const h = await (await fetch("/api/health")).json();
-    $("dQwen").className = "dot" + (h.qwen.ok ? " ok" : ""); $("dOcr").className = "dot" + (h.ocr.ok ? " ok" : "");
-    $("res").textContent = `RAM ${h.resources.ram_used_gb}GB · CPU ${h.resources.cpu_percent}%`;
-  } catch { $("dQwen").className = $("dOcr").className = "dot"; }
+  } catch (e) { failed = true; card.setStatus(e.name === "AbortError" ? "متوقف شد (متن تا اینجا حفظ شد)." : "خطا: " + e); }
+  clearInterval(timer); card.stop.hidden = true;
+  if (noLayer && !card.ta.value.trim()) card.setStatus("این فایل لایه متنی ندارد؛ روش «دستی» (Google Lens) یا یکی از OCRها را انتخاب کنید.");
+  if (!failed && card.ta.value.trim()) {
+    if ($("autoAnalyze").checked) await analyze(card, true);
+    else card.setStatus(card.el.querySelector(".cmeta").textContent + " — متن را بررسی/اصلاح کنید و «ارسال به مدل» را بزنید.");
+  }
 }
+
+// ---------- sending ----------
+async function handleSend() {
+  const text = $("input").value.trim(), file = attached;
+  if (!file) { if (!text || busy) return; $("input").value = ""; await askModel({prompt: text, bubble: text}); return; }
+  if (busy) return;
+  const method = $("method").value;
+  $("input").value = ""; clearAttachment();
+  addMsg("user", text || "(بدون پیام)", file.name);
+  const card = createCard(file, method, text);
+  if (method === "manual") {
+    const fd = new FormData(); fd.append("file", file); fetch("/api/upload", {method: "POST", body: fd}).catch(() => {});  // keep the original
+    card.setStatus("متن فایل را (مثلاً از Google Lens) در کادر بچسبانید و «ارسال به مدل» را بزنید.");
+    card.ta.placeholder = "متن را اینجا بچسبانید…"; card.ta.focus();
+    return;
+  }
+  await runExtraction(card);
+}
+$("send").onclick = handleSend;
+$("input").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } });
+$("clear").onclick = () => { history = [SYSTEM]; showEmpty(); clearAttachment(); };
+$("drawerBtn").onclick = () => { $("drawer").hidden = !$("drawer").hidden; };
+
 // ---------- model manager ----------
 function fillSelect(sel, list) {
   const sig = list.map(x => x.file).join("|");
@@ -328,6 +416,7 @@ async function loadModel(role) {
   const r = await fetch("/api/models/load", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
   $("mErr").dataset.manual = r.ok ? "" : "1";
   $("mErr").textContent = r.ok ? "" : ((await r.json()).detail || r.status);
+  if (!r.ok) $("drawer").hidden = false;
   refreshModels();
 }
 async function unloadModel(role) {
@@ -336,55 +425,24 @@ async function unloadModel(role) {
 }
 $("chatLoad").onclick = () => loadModel("chat"); $("ocrLoad").onclick = () => loadModel("ocr");
 $("chatUnload").onclick = () => unloadModel("chat"); $("ocrUnload").onclick = () => unloadModel("ocr");
-refreshModels(); setInterval(refreshModels, 3000);
-
-// PDF info (page count / text layer) when a file is chosen
-$("file").addEventListener("change", async () => {
-  const f = $("file").files[0]; $("pdfInfo").textContent = "";
-  if (!f || !/\.pdf$/i.test(f.name)) return;
-  $("pdfInfo").textContent = "در حال بررسی PDF…";
-  const fd = new FormData(); fd.append("file", f);
-  try {
-    const r = await fetch("/api/pdfinfo", {method: "POST", body: fd}); const j = await r.json();
-    $("pdfInfo").textContent = r.ok ? `${j.pages} صفحه · لایه متنی: ${j.has_text_layer ? "دارد (خواندن مستقیم ممکن است)" : "ندارد (اسکن؛ OCR لازم است)"} · هر صفحه OCR چند دقیقه طول می‌کشد` : (j.detail || "خطا");
-  } catch (e) { $("pdfInfo").textContent = ""; }
-});
-
-// ---------- text normalization (useful for text pasted from Google Lens etc.) ----------
-function normalizeFa(s) {
-  const dig = {"۰":"0","۱":"1","۲":"2","۳":"3","۴":"4","۵":"5","۶":"6","۷":"7","۸":"8","۹":"9","٠":"0","١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9"};
-  return s.normalize("NFKC").replace(/[۰-۹٠-٩]/g, d => dig[d]).replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/ـ/g, "")
-          .replace(/٬/g, ",").replace(/٫/g, ".").replace(/[ \t]+\n/g, "\n");
-}
-$("normBtn").onclick = () => { $("ocrText").value = normalizeFa($("ocrText").value); $("ocrStatus").textContent = "متن نرمال‌سازی شد: ارقام لاتین، ی و ک فارسی، حروف استاندارد."; };
-
-// ---------- engine comparison tabs + PaddleOCR ----------
-const results = {dots: "", paddle: ""}, meta = {};
-let activeTab = "dots";
-function saveCurrent() { results[activeTab] = $("ocrText").value; }
-function styleTabs() {
-  $("tabDots").classList.toggle("active", activeTab === "dots");
-  $("tabPaddle").classList.toggle("active", activeTab === "paddle");
-  const p = []; if (meta.dots != null) p.push(`Dots: ${meta.dots} ثانیه`); if (meta.paddle != null) p.push(`Paddle: ${meta.paddle} ثانیه`);
-  $("cmpInfo").textContent = p.join(" · ");
-}
-function showTab(t) { saveCurrent(); activeTab = t; $("ocrText").value = results[t]; styleTabs(); }
-$("tabDots").onclick = () => showTab("dots"); $("tabPaddle").onclick = () => showTab("paddle");
+$("paddleUnload").onclick = async () => { await fetch("/api/paddle/unload", {method: "POST"}); paddleInfo(); };
 async function paddleInfo() {
-  const isP = $("ocrEngine").value === "paddle";
-  $("paddleLang").style.display = isP ? "" : "none"; $("paddleUnload").style.display = isP ? "" : "none";
-  $("ocrPrompt").style.display = $("ocrTokens").style.display = isP ? "none" : "";
-  if (!isP) return;
   try {
     const s = await (await fetch("/api/paddle/status")).json();
-    $("ocrStatus").textContent = !s.installed ? "PaddleOCR نصب نیست — دستور: pip install -r backend\\requirements-paddle.txt (داخل .venv)"
-      : (s.loaded ? `PaddleOCR بارگذاری شده است (${s.lang})` : "PaddleOCR نصب است؛ مدل با اولین OCR بارگذاری می‌شود (بار اول ممکن است از اینترنت دانلود کند).");
+    $("paddleStat").textContent = !s.installed ? "نصب نیست (pip install -r backend\\requirements-paddle.txt)" : (s.loaded ? `بارگذاری‌شده (${s.lang})` : "نصب است؛ با اولین استفاده بارگذاری می‌شود");
   } catch (e) { /* ignore */ }
 }
-$("ocrEngine").addEventListener("change", paddleInfo);
-$("paddleUnload").onclick = async () => { await fetch("/api/paddle/unload", {method: "POST"}); paddleInfo(); };
 
-poll(); setInterval(poll, 5000);
+async function poll() {
+  try {
+    const h = await (await fetch("/api/health")).json();
+    $("dQwen").className = "dot" + (h.qwen.ok ? " ok" : ""); $("dOcr").className = "dot" + (h.ocr.ok ? " ok" : "");
+    $("res").textContent = `RAM ${h.resources.ram_used_gb}GB · CPU ${h.resources.cpu_percent}%`;
+  } catch { $("dQwen").className = $("dOcr").className = "dot"; }
+}
+showEmpty(); syncAuto();
+refreshModels(); setInterval(refreshModels, 3000);
+paddleInfo(); poll(); setInterval(poll, 5000);
 </script>
 </body>
 </html>
