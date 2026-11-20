@@ -158,7 +158,7 @@ const $ = id => document.getElementById(id);
 const history = [{role:"system", content:"تو دستیار هوشمند بخش تدارکات و بازرگانی هستی. به فارسی، دقیق و مختصر پاسخ بده. اگر اطلاعاتی در متن نیست، حدس نزن و بگو موجود نیست."}];
 const PROMPTS = {
   summary:"متن زیر خروجی OCR یک سند است. آن را به صورت خلاصه ساختاریافته (نوع سند، شماره و تاریخ، طرفین، اقلام، مبالغ، نکات مهم) بنویس:",
-  proforma:"متن زیر خروجی OCR یک پیش‌فاکتور است. فقط یک JSON با کلیدهای seller, number, date, currency, items[{name,qty,unit,unit_price,total}], total, payment_terms, delivery_time, validity برگردان. مقدار نامشخص را null بگذار:",
+  proforma:"متن زیر یک پیش‌فاکتور فارسی است؛ ستون‌های جدول با | جدا شده‌اند. فقط یک JSON فشرده در یک خط (بدون فاصله اضافه و بدون توضیح) با این کلیدها برگردان: seller, buyer, number, date, currency, items[{row,code,name,qty,unit,sub_qty,sub_unit,unit_price,total}], total_before_tax, tax, grand_total, payment_terms, delivery_time, validity. قواعد: qty و unit همان «مقدار اصلی» و واحد آن هستند و فی (unit_price) به ازای همین واحد اصلی است؛ «مقدار فرعی» و «واحد فرعی» را در sub_qty و sub_unit بنویس. کد کالا را در code بگذار و داخل name تکرار نکن. همه اعداد را بدون ویرگول و به‌صورت عدد بنویس. مقدار نامشخص را null بگذار. هیچ عددی را حدس نزن و خودت محاسبه نکن:",
   request:"متن زیر خروجی OCR یک درخواست خرید است. فقط یک JSON با کلیدهای number, date, project, requester, priority, items[{name,spec,qty,unit}], notes برگردان. مقدار نامشخص را null بگذار:",
   free:""
 };
@@ -175,6 +175,29 @@ function statLine(s){
   if (s.tokens_per_s != null) parts.push(`${s.tokens_per_s} توکن/ثانیه`);
   if (s.resources) parts.push(`RAM ${s.resources.ram_used_gb}GB`, `CPU ${s.resources.cpu_percent}%`);
   return parts.join(" · ");
+}
+
+function checkInvoice(text) {
+  if (!/"items"/.test(text)) return null;
+  const m = text.match(/\{[\s\S]*\}/); if (!m) return "⚠ بررسی خودکار: JSON ناتمام ماند؛ حداکثر توکن را بیشتر کنید.";
+  let j; try { j = JSON.parse(m[0]); } catch (e) { return "⚠ بررسی خودکار: JSON کامل یا معتبر نیست (شاید ناتمام ماند؛ حداکثر توکن را بیشتر کنید)."; }
+  const num = v => typeof v === "number" ? v : (typeof v === "string" && /^[\d.,]+$/.test(v) ? Number(v.replace(/,/g, "")) : NaN);
+  const fmt = v => Math.round(v).toLocaleString("en");
+  const bad = [], done = [], items = Array.isArray(j.items) ? j.items : [];
+  let sum = 0, sumOk = items.length > 0;
+  items.forEach((it, i) => {
+    const q = num(it.qty), p = num(it.unit_price), t = num(it.total);
+    if (isNaN(t)) sumOk = false; else sum += t;
+    if (!isNaN(q) && !isNaN(p) && !isNaN(t)) {
+      if (Math.abs(q * p - t) > Math.max(1, t * 1e-6)) bad.push(`ردیف ${it.row ?? i + 1}: تعداد × فی = ${fmt(q * p)} ولی مبلغ ${fmt(t)} است (احتمالاً واحد یا مقدار اصلی/فرعی اشتباه خوانده شده)`);
+      else done.push(i);
+    }
+  });
+  const before = num(j.total_before_tax), tax = num(j.tax), grand = num(j.grand_total);
+  if (sumOk && !isNaN(before)) { if (Math.abs(sum - before) > 1) bad.push(`جمع مبلغ ردیف‌ها ${fmt(sum)} با جمع قبل از مالیات ${fmt(before)} نمی‌خواند`); else done.push("sum"); }
+  if (!isNaN(before) && !isNaN(tax) && !isNaN(grand)) { if (Math.abs(before + tax - grand) > 1) bad.push(`جمع قبل از مالیات + مالیات = ${fmt(before + tax)} ولی جمع کل ${fmt(grand)} است`); else done.push("grand"); }
+  if (bad.length) return "⚠ بررسی خودکار حساب‌ها:\n" + bad.join("\n");
+  return done.length ? "✓ بررسی خودکار: حساب‌های قابل بررسی (ضرب ردیف‌ها و جمع‌ها) می‌خوانند." : null;
 }
 
 async function send(text){
@@ -203,6 +226,7 @@ async function send(text){
       }
     }
     if (out) history.push({role:"assistant", content:out}); else history.pop();
+    if (out) { const c = checkInvoice(out); if (c) { const d = document.createElement("div"); d.className = "stat"; d.style.whiteSpace = "pre-wrap"; d.textContent = c; box.appendChild(d); } }
   } catch (e) { box.className = "msg err"; box.textContent = "خطای ارتباط: " + e; history.pop(); }
   busy = false; $("send").disabled = $("toQwen").disabled = false;
 }
