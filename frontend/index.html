@@ -140,7 +140,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
         <button class="sec" id="paddleUnload" style="display:none" title="آزاد کردن RAM مدل PaddleOCR">آزاد کردن Paddle</button>
         <span id="cmpInfo" class="pill"></span>
       </div>
-      <textarea id="ocrText" placeholder="متن استخراج‌شده اینجا نمایش داده می‌شود و قابل ویرایش است."></textarea>
+      <textarea id="ocrText" placeholder="متن استخراج‌شده اینجا نمایش داده می‌شود و قابل ویرایش است. می‌توانید متن را از بیرون (مثلاً Google Lens) هم اینجا بچسبانید."></textarea>
       <div class="row">
         <select id="task">
           <option value="summary">خلاصه ساختاریافته</option>
@@ -148,6 +148,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
           <option value="request">استخراج اطلاعات درخواست خرید (JSON)</option>
           <option value="free">فقط متن را بفرست (سؤال را خودم در چت می‌نویسم)</option>
         </select>
+        <button class="sec" id="normBtn" title="ارقام فارسی/عربی به لاتین، ي و ك عربی به ی و ک، شکل‌های نمایشی حروف به استاندارد">نرمال‌سازی متن</button>
         <button id="toQwen">ارسال متن اصلاح‌شده به Qwen</button>
       </div>
     </div>
@@ -348,6 +349,14 @@ $("file").addEventListener("change", async () => {
     $("pdfInfo").textContent = r.ok ? `${j.pages} صفحه · لایه متنی: ${j.has_text_layer ? "دارد (خواندن مستقیم ممکن است)" : "ندارد (اسکن؛ OCR لازم است)"} · هر صفحه OCR چند دقیقه طول می‌کشد` : (j.detail || "خطا");
   } catch (e) { $("pdfInfo").textContent = ""; }
 });
+
+// ---------- text normalization (useful for text pasted from Google Lens etc.) ----------
+function normalizeFa(s) {
+  const dig = {"۰":"0","۱":"1","۲":"2","۳":"3","۴":"4","۵":"5","۶":"6","۷":"7","۸":"8","۹":"9","٠":"0","١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9"};
+  return s.normalize("NFKC").replace(/[۰-۹٠-٩]/g, d => dig[d]).replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/ـ/g, "")
+          .replace(/٬/g, ",").replace(/٫/g, ".").replace(/[ \t]+\n/g, "\n");
+}
+$("normBtn").onclick = () => { $("ocrText").value = normalizeFa($("ocrText").value); $("ocrStatus").textContent = "متن نرمال‌سازی شد: ارقام لاتین، ی و ک فارسی، حروف استاندارد."; };
 
 // ---------- engine comparison tabs + PaddleOCR ----------
 const results = {dots: "", paddle: ""}, meta = {};
