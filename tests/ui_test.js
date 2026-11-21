@@ -1,9 +1,9 @@
 // End-to-end UI test with jsdom (no browser needed).  Setup:  npm install jsdom
 // Backend must run with fake llama servers on 18080/18081 and PYTHONPATH=tests/fakes (see run notes in docs).
-// Usage: node tests/ui_test.js http://127.0.0.1:8000 /path/to/text.pdf /path/to/image.png
+// Usage: node tests/ui_test.js http://127.0.0.1:8000 /path/to/text.pdf /path/to/image.png tests/fixtures/proforma_layout.txt
 const { JSDOM } = require("jsdom");
 const fs = require("fs");
-const base = process.argv[2], pdfPath = process.argv[3], pngPath = process.argv[4];
+const base = process.argv[2], pdfPath = process.argv[3], pngPath = process.argv[4], synPath = process.argv[5];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let failed = 0;
 const check = (name, ok, extra = "") => { console.log((ok ? "PASS " : "FAIL ") + name, extra); if (!ok) failed++; };
@@ -85,7 +85,21 @@ async function until(fn, ms = 15000) { const t0 = Date.now(); while (Date.now() 
   await w.attach(png); $("send").click();
   check("paddle card has recognized lines", await until(() => { const cs = cards(); return cs.length === 4 && cs[3].querySelector(".ctext").value.includes("خط اول"); }), cards()[3] && cards()[3].querySelector(".ctext").value);
 
-  // 6) new conversation
+  // 6) hybrid pre-invoice: table read by code, header by the model
+  $("method").value = "manual"; $("method").onchange();
+  await w.attach(png); $("send").click();
+  await until(() => cards().length === 5);
+  const c5 = cards()[4];
+  check("hybrid is the default task when there is no message", c5.querySelector(".task").value === "hybrid");
+  c5.querySelector(".ctext").value = fs.readFileSync(synPath, "utf8");
+  c5.querySelector(".analyze").click();
+  const asst = () => [...d.querySelectorAll(".msg.assistant")].map(m => m.textContent);
+  check("table message (read by code) appears", await until(() => asst().some(t => t.includes("خوانده‌شده با کد") && t.includes('"qty": 5'))));
+  check("final result: header from model + totals from code", await until(() => asst().some(t => t.includes("نتیجه نهایی") && t.includes("شرکت نمونه") && t.includes('"grand_total": 22000'))));
+  check("arithmetic check passes on the merged result", asst().some(t => t.includes("✓ بررسی خودکار")));
+  await until(() => !$("send").disabled);
+
+  // 7) new conversation
   $("clear").click();
   check("new conversation resets the log", !!d.querySelector(".empty") && cards().length === 0);
   console.log(failed ? `\n${failed} FAILED` : "\nALL OK");

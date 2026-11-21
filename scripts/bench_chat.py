@@ -4,9 +4,13 @@ For every chat model found in models\\ (or those matching --models) it: loads th
 reads the PDF text layer once, sends the same pre-invoice prompt the UI uses, and reports load time, time to first token,
 tokens/s, total time, JSON validity, the arithmetic check and (optionally) accuracy against a golden JSON.
 
+Modes:  hybrid (default) = the real app path: the item table is read by code, the model only reads the header text.
+        full = the model reads everything and writes the whole JSON (slow; shows how much the hybrid path saves).
+Input:  --pdf (digital PDF with a text layer) or --text-file (plain text, e.g. text pasted from Google Lens).
+
 Usage (backend must be running, e.g. scripts\\start_app.bat; other model servers closed):
   python scripts\\bench_chat.py --pdf C:\\path\\invoice.pdf --golden tests\\golden\\private_invoice.json
-  python scripts\\bench_chat.py --pdf invoice.pdf --models gemma,qwen --ctx 4096 --max-tokens 2048
+  python scripts\\bench_chat.py --pdf invoice.pdf --models gemma,qwen --mode full --max-tokens 2048
 Results are printed and saved to logs\\bench_<time>.md / .json
 """
 import argparse, json, pathlib, re, sys, time
@@ -21,7 +25,10 @@ def ui_strings():
     sy = re.search(r'SYSTEM = \{role: "system", content: "((?:[^"\\]|\\.)*)"\}', html)
     if not pf or not sy:
         sys.exit("Could not read the prompts from frontend/index.html")
-    return json.loads('"' + pf.group(1) + '"'), json.loads('"' + sy.group(1) + '"')
+    hp = re.search(r'const HEADER_PROMPT = "((?:[^"\\]|\\.)*)";', html)
+    if not hp:
+        sys.exit("Could not read HEADER_PROMPT from frontend/index.html")
+    return json.loads('"' + pf.group(1) + '"'), json.loads('"' + sy.group(1) + '"'), json.loads('"' + hp.group(1) + '"')
 
 
 def num(v):
@@ -84,6 +91,8 @@ def golden_score(j, g):
         nonlocal pts, hit
         pts += 1
         hit += bool(ok)
+    if "buyer_contains" in g:
+        check(norm(g["buyer_contains"]) in norm(json.dumps(j.get("buyer", ""), ensure_ascii=False)))
     if "seller_contains" in g:
         check(norm(g["seller_contains"]) in norm(j.get("seller", "")) if not isinstance(j.get("seller"), dict) else norm(g["seller_contains"]) in norm(json.dumps(j["seller"], ensure_ascii=False)))
     for k in ("number", "date"):
@@ -108,36 +117,56 @@ def golden_score(j, g):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://127.0.0.1:8000")
-    ap.add_argument("--pdf", required=True, help="a PDF with a text layer (pre-invoice)")
+    ap.add_argument("--pdf", help="a PDF with a text layer (pre-invoice)")
+    ap.add_argument("--text-file", help="plain text of the document instead of a PDF (e.g. pasted from Google Lens)")
+    ap.add_argument("--mode", choices=["hybrid", "full"], default="hybrid")
     ap.add_argument("--pages", default="1")
     ap.add_argument("--golden", help="JSON with the correct values (see tests/golden/example_proforma.json)")
     ap.add_argument("--models", default="", help="comma-separated substrings to select models (default: all chat models)")
     ap.add_argument("--ctx", type=int, default=4096)
-    ap.add_argument("--max-tokens", type=int, default=2048)
+    ap.add_argument("--max-tokens", type=int, default=0, help="default: 400 for hybrid, 2048 for full")
     ap.add_argument("--load-timeout", type=int, default=900)
     a = ap.parse_args()
 
-    prompt, system = ui_strings()
+    if not a.pdf and not a.text_file:
+        sys.exit("Give --pdf or --text-file")
+    prompt, system, header_prompt = ui_strings()
     golden = json.loads(pathlib.Path(a.golden).read_text(encoding="utf-8")) if a.golden else None
     c = httpx.Client(base_url=a.base, timeout=None)
 
-    # 1) read the document text once (text layer, same as the UI's default method)
-    pdf = pathlib.Path(a.pdf)
-    pages = []
-    with c.stream("POST", "/api/ocr", files={"file": (pdf.name, pdf.read_bytes())},
-                  data={"engine": "text", "mode": "auto", "pages": a.pages, "text_style": "layout"}) as r:
-        for line in r.iter_lines():
-            if line.strip():
-                ev = json.loads(line)
-                if ev["type"] == "page" and ev.get("text"):
-                    pages.append(ev["text"])
-                elif ev["type"] == "error":
-                    sys.exit("Text extraction failed: " + ev["message"])
-    if not pages:
-        sys.exit("The PDF has no text layer; this benchmark needs a digital PDF.")
-    doc_text = "\n\n".join(pages)
-    full_prompt = prompt + "\n\n---\n" + doc_text
-    print(f"Document text: {len(doc_text)} characters, {len(pages)} page(s)")
+    # 1) read the document text once
+    if a.text_file:
+        doc_text, label = pathlib.Path(a.text_file).read_text(encoding="utf-8"), pathlib.Path(a.text_file).name
+    else:
+        pdf = pathlib.Path(a.pdf)
+        label, pages = pdf.name, []
+        with c.stream("POST", "/api/ocr", files={"file": (pdf.name, pdf.read_bytes())},
+                      data={"engine": "text", "mode": "auto", "pages": a.pages, "text_style": "layout"}) as r:
+            for line in r.iter_lines():
+                if line.strip():
+                    ev = json.loads(line)
+                    if ev["type"] == "page" and ev.get("text"):
+                        pages.append(ev["text"])
+                    elif ev["type"] == "error":
+                        sys.exit("Text extraction failed: " + ev["message"])
+        if not pages:
+            sys.exit("The PDF has no text layer; this benchmark needs a digital PDF (or use --text-file).")
+        doc_text = "\n\n".join(pages)
+    print(f"Document: {label}, {len(doc_text)} characters")
+    table_note = ""
+    if a.mode == "hybrid":
+        parsed = c.post("/api/invoice/parse", json={"text": doc_text}).json()
+        if not parsed["items"]:
+            sys.exit("The code parser found no item table in this document; try --mode full.")
+        table_note = f"table read by code: {len(parsed['items'])} items, problems: {parsed['problems'] or 'none'}"
+        print(table_note)
+        full_prompt = header_prompt + "\n\n---\n" + parsed["header_text"]
+        max_tokens = a.max_tokens or 400
+        if golden:
+            golden = {k: v for k, v in golden.items() if k in ("seller_contains", "buyer_contains", "number", "date", "currency_contains")}
+    else:
+        full_prompt = prompt + "\n\n---\n" + doc_text
+        max_tokens = a.max_tokens or 2048
 
     models = c.get("/api/models").json()["chat"]
     want = [w.strip().lower() for w in a.models.split(",") if w.strip()]
@@ -168,7 +197,7 @@ def main():
         row["load_s"] = state.get("load_s")
         text, stats, err = "", None, None
         with c.stream("POST", "/api/chat", json={"messages": [{"role": "system", "content": system}, {"role": "user", "content": full_prompt}],
-                                                  "max_tokens": a.max_tokens, "temperature": 0.2}) as resp:
+                                                  "max_tokens": max_tokens, "temperature": 0.2}) as resp:
             for line in resp.iter_lines():
                 if not line.startswith("data:"):
                     continue
@@ -188,8 +217,9 @@ def main():
         if jerr:
             row["note"] = jerr
         if j is not None:
-            bad, done = arithmetic(j)
-            row["arith_checks"], row["arith_problems"] = done, bad
+            if a.mode == "full":
+                bad, done = arithmetic(j)
+                row["arith_checks"], row["arith_problems"] = done, bad
             if golden:
                 h, p = golden_score(j, golden)
                 row["golden"] = f"{h}/{p}"
@@ -202,14 +232,14 @@ def main():
     lines = ["| model | GB | load s | first token s | tok/s | total s | JSON | arithmetic | golden | note |", "|---|---|---|---|---|---|---|---|---|---|"]
     for r in results:
         prob = r.get("arith_problems")
-        arith = "-" if prob is None else ("OK" if not prob and r.get("arith_checks") else ("no checks" if not prob else f"{len(prob)} problem(s)"))
+        arith = ("by code" if a.mode == "hybrid" else "-") if prob is None else ("OK" if not prob and r.get("arith_checks") else ("no checks" if not prob else f"{len(prob)} problem(s)"))
         lines.append(f"| {r['model']} | {r.get('size_gb')} | {r.get('load_s', '')} | {r.get('first_token_s', '')} | {r.get('tokens_per_s', '')} | {r.get('total_s', '')} | {'yes' if r.get('json_ok') else 'NO'} | {arith} | {r.get('golden', '-')} | {r.get('error') or r.get('note') or ''} |")
     report = "\n".join(lines)
     print("\n" + report)
     out = ROOT / "logs"
     out.mkdir(exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    (out / f"bench_{stamp}.md").write_text(f"# Chat model benchmark {stamp}\n\nDocument: {pdf.name}, ctx {a.ctx}\n\n{report}\n", encoding="utf-8")
+    (out / f"bench_{stamp}.md").write_text(f"# Chat model benchmark {stamp}\n\nDocument: {label}, mode {a.mode}, ctx {a.ctx}\n{table_note}\n\n{report}\n", encoding="utf-8")
     (out / f"bench_{stamp}.json").write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"\nSaved: logs/bench_{stamp}.md and .json (full model outputs are in the .json)")
 

@@ -29,6 +29,7 @@ from PIL import Image
 from pydantic import BaseModel
 
 from backend import paddle_engine as paddle
+from backend.invoice_parser import parse_proforma
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -507,6 +508,16 @@ async def paddle_status():
 async def paddle_unload():
     await asyncio.to_thread(paddle.unload)
     return {"ok": True}
+
+
+class ParseReq(BaseModel):
+    text: str
+
+
+@app.post("/api/invoice/parse")
+async def invoice_parse(req: ParseReq):
+    """Read the item table of a pre-invoice with code only (arithmetic-verified); returns the header text for the LLM."""
+    return parse_proforma(req.text)
 
 
 @app.post("/api/upload")

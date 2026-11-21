@@ -4,8 +4,9 @@
 |---|---|
 | `backend/main.py` | تنها فایل بک‌اند. مدیر مدل‌ها: `/api/models` (لیست فایل‌های `models/` + وضعیت)، `/api/models/load` و `unload` (اجرا/توقف `llama-server` به‌عنوان زیرفرایند، لاگ در `logs/llama_<role>.log`)؛ `/api/pdfinfo`؛ انتخاب صفحه PDF (`parse_pages`) و خواندن مستقیم لایه متنی (`load_pages`؛ `layout_text` حرف‌به‌حرف (rawdict) ردیف و سلول می‌سازد و با `visual_to_logical` ترتیب راست‌به‌چپ را برمی‌گرداند، `normalize_fa` شکل‌های نمایشی را به حروف استاندارد برمی‌گرداند؛ فرم `text_style` = layout|raw).  env config؛ `/api/health` (پینگ دو llama-server)، `/api/chat` (پراکسی استریم به Qwen، زمان‌سنجی، `chat_template_kwargs.enable_thinking`)، `/api/ocr` (ذخیره فایل اصلی در `data/uploads`، PDF→تصویر با PyMuPDF، کوچک‌کردن به `OCR_MAX_SIDE`، یک صفحه در هر درخواست به Dots، قفل: یک کار OCR همزمان)، سرو `frontend/` |
 | `backend/requirements.txt` | وابستگی‌های Python |
+| `backend/invoice_parser.py` | خواندن جدول پیش‌فاکتور بدون مدل: ردیف‌ها را با شرط «تعداد×فی=مبلغ» (کنار هم) پیدا می‌کند، تخفیف/مالیات/جمع هر ردیف و جمع‌های کل را تأیید می‌کند، متن سربرگ را جدا می‌دهد. endpoint: `/api/invoice/parse` |
 | `backend/paddle_engine.py` | موتور سوم OCR (PaddleOCR) داخل همان فرایند؛ بارگذاری تنبل با `load(lang)`، `read(img)`، `unload()`؛ اختیاری (`requirements-paddle.txt`) |
-| `frontend/index.html` | تمام UI (CSS+JS داخل یک فایل): یک چت واحد با «+» پیوست، انتخاب مدل چت و روش خواندن فایل (text/manual/dots/paddle) در نوار پایین، کارت استخراج قابل ویرایش داخل چت، کشوی «مدل‌ها و تنظیمات». فونت در `@font-face`/`:root`. توابع کلیدی: `handleSend`, `askModel`, `createCard`, `runExtraction`, `analyze`, `checkInvoice`, `normalizeFa`, `refreshModels` |
+| `frontend/index.html` | تمام UI (CSS+JS داخل یک فایل): یک چت واحد با «+» پیوست، انتخاب مدل چت و روش خواندن فایل (text/manual/dots/paddle) در نوار پایین، کارت استخراج قابل ویرایش داخل چت، کشوی «مدل‌ها و تنظیمات». فونت در `@font-face`/`:root`. توابع کلیدی: `handleSend`, `askModel`, `createCard`, `runExtraction`, `analyze`, `analyzeHybrid` (جدول با کد + سربرگ با مدل)، `checkInvoice`, `normalizeFa`, `refreshModels` |
 | `frontend/fonts/*.woff2` | SG Kara (FaNum و Std)؛ داخل گیت است (مجوز را مالک تأیید کرده) |
 | `scripts/setup_windows.ps1` | ساخت venv و دانلود آخرین llama.cpp CPU |
 | `scripts/bench_chat.py` | مقایسه خودکار مدل‌های چت روی یک PDF از طریق بک‌اند در حال اجرا (زمان، JSON، حساب‌ها، دقت نسبت به golden). پرامپت‌ها را از `frontend/index.html` می‌خواند |
@@ -14,6 +15,7 @@
 | `tests/mock_llama.py` | llama-server ساختگی برای تست |
 | `tests/smoke_test.py` | تست دود سراسری روی بک‌اند |
 | `tests/ui_test.js` | تست سراسری رابط با jsdom (نیاز به `npm install jsdom`) |
+| `tests/test_invoice_parser.py` + `tests/fixtures/proforma_layout.txt` | تست پارسر با پیش‌فاکتور ساختگی؛ با `PDF=` و `GOLDEN=` روی سند واقعی |
 | `tests/test_text_engine.py` | روش «فقط لایه متنی» و `/api/upload` |
 | `tests/test_layout.py` | تست ترتیب راست‌به‌چپ و جدول (نیاز به `FONT_TTF` برای ساخت PDF نمونه) |
 | `tests/test_paddle.py` + `tests/fakes/paddleocr/` | تست موتور Paddle با بسته‌ی ساختگی (`PYTHONPATH=tests/fakes`) |
