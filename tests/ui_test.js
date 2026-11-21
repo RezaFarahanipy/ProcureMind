@@ -95,7 +95,7 @@ async function until(fn, ms = 15000) { const t0 = Date.now(); while (Date.now() 
   c5.querySelector(".analyze").click();
   const asst = () => [...d.querySelectorAll(".msg.assistant")].map(m => m.textContent);
   check("table message (read by code) appears", await until(() => asst().some(t => t.includes("خوانده‌شده با کد") && t.includes('"qty": 5'))));
-  check("final result: header from model + totals from code", await until(() => asst().some(t => t.includes("نتیجه نهایی") && t.includes("شرکت نمونه") && t.includes('"grand_total": 22000'))));
+  check("final result: seller from model, number/date/currency/buyer + table from code", await until(() => asst().some(t => t.includes("نتیجه نهایی") && t.includes('"seller": "شرکت نمونه"') && t.includes('"number": "1001"') && t.includes('"date": "1405/01/01"') && t.includes('"currency": "ریال"') && t.includes('"grand_total": 22000'))));
   check("arithmetic check passes on the merged result", asst().some(t => t.includes("✓ بررسی خودکار")));
   await until(() => !$("send").disabled);
 

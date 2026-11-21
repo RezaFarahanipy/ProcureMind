@@ -126,3 +126,71 @@ def parse_proforma(text: str) -> dict:
             if val is not None and not totals["confirmed"][name]:
                 problems.append(f"جمع محاسبه‌شده‌ی {name} ({val:,}) در متن سند پیدا نشد")
     return {"items": items, "totals": totals, "header_text": "\n".join(header), "unparsed": unparsed, "problems": problems}
+
+
+# ---------------------------------------------------------------- header (seller / buyer / number / date / currency)
+_DATE = re.compile(r"(?<!\d)(1[34]\d{2}/\d{1,2}/\d{1,2})(?!\d)")
+_NUM_LABELS = [re.compile(r"(?:سریال|شماره\s*پیش\s*فاکتور|شماره)\s*:?\s*(\d{1,15})(?!\d)"),
+               re.compile(r"(?<!\d)(\d{1,15})\s*:\s*(?:سریال|شماره)")]
+
+
+def _flat(s: str) -> str:
+    return re.sub(r"\s+", " ", s.translate(_DIG)).strip()
+
+
+def code_header(header_text: str, full_text: str) -> dict:
+    """Number, date, currency and buyer read by regex (exact; never hallucinated)."""
+    ht, ft = header_text.translate(_DIG), full_text.translate(_DIG)
+    out = {"number": None, "date": None, "currency": None, "buyer": None}
+    m = _DATE.search(ht)
+    out["date"] = m.group(1) if m else None
+    for rx in _NUM_LABELS:
+        m = rx.search(ht)
+        if m:
+            out["number"] = m.group(1)
+            break
+    out["currency"] = "ریال" if "ریال" in ft else ("تومان" if "تومان" in ft else None)
+    m = re.search(r"خریدار[^\n]*?نام\s*:\s*([^\n|]+)", ht)
+    if m:
+        out["buyer"] = m.group(1).strip()
+    return out
+
+
+def merge_header(model: dict, header_text: str, full_text: str) -> dict:
+    """Combine the model's {seller, buyer} with the regex fields and verify every claim against the document text.
+    Anything the model wrote that is not in the document (or in the wrong place) is dropped and reported."""
+    model = model if isinstance(model, dict) else {}
+    code = code_header(header_text, full_text)
+    lines = header_text.translate(_DIG).split("\n")
+    marker = next((i for i, ln in enumerate(lines) if ln.strip().startswith("خریدار")), None)
+    whole = _flat(header_text)
+    before = _flat("\n".join(lines[:marker])) if marker is not None else whole
+
+    def found(value, text) -> bool:
+        words = _flat(str(value)).split()
+        return bool(words) and all(w in text for w in words)
+
+    warnings, out = [], {"seller": None, "buyer": None}
+    s = model.get("seller")
+    if isinstance(s, str) and s.strip():
+        if found(s, before):
+            out["seller"] = s.strip()
+        else:
+            warnings.append(f"فروشنده‌ی پیشنهادی مدل («{s.strip()}») در بخش بالای «خریدار» سند پیدا نشد؛ آن را دستی وارد کنید")
+    else:
+        warnings.append("فروشنده خوانده نشد؛ آن را دستی وارد کنید")
+    b = model.get("buyer")
+    if code["buyer"]:
+        out["buyer"] = code["buyer"]
+    elif isinstance(b, str) and found(b, whole):
+        out["buyer"] = b.strip()
+    else:
+        warnings.append("خریدار خوانده نشد؛ آن را دستی وارد کنید")
+    if out["seller"] and out["buyer"] and _flat(out["seller"]) == _flat(out["buyer"]):
+        warnings.append("فروشنده و خریدار یکی شدند؛ فروشنده را بررسی کنید")
+        out["seller"] = None
+    for k in ("number", "date", "currency"):
+        out[k] = code[k]
+        if code[k] is None:
+            warnings.append(f"{k} در سند پیدا نشد")
+    return {"header": out, "warnings": warnings}

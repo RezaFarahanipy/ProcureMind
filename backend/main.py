@@ -29,7 +29,7 @@ from PIL import Image
 from pydantic import BaseModel
 
 from backend import paddle_engine as paddle
-from backend.invoice_parser import parse_proforma
+from backend.invoice_parser import merge_header, parse_proforma
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -120,6 +120,16 @@ def resources() -> dict:
         "ram_percent": vm.percent,
         "cpu_percent": psutil.cpu_percent(interval=None),
     }
+
+
+def crash_msg(role: str) -> str:
+    """Message for a dropped connection to llama-server (usually a crash / out of memory) with the log tail."""
+    tail = ""
+    try:
+        tail = (LOGS / f"llama_{role}.log").read_bytes()[-500:].decode("utf-8", "replace")
+    except OSError:
+        pass
+    return f"ارتباط با مدل قطع شد؛ احتمالاً مدل کرش کرد یا RAM کم آمد (جزئیات: logs\\llama_{role}.log).\n{tail}".strip()
 
 
 def log_test(entry: dict) -> None:
@@ -316,6 +326,9 @@ async def chat(req: ChatReq):
             except httpx.ConnectError:
                 yield sse({"type": "error", "message": "مدل چت آماده نیست. از بخش «مدل‌ها» بالای صفحه یک مدل چت بارگذاری کنید."})
                 return
+            except (httpx.ReadError, httpx.RemoteProtocolError):
+                yield sse({"type": "error", "message": crash_msg("chat")})
+                return
             except Exception as e:  # noqa: BLE001
                 yield sse({"type": "error", "message": f"خطا: {type(e).__name__}: {e}"})
                 return
@@ -330,10 +343,11 @@ async def chat(req: ChatReq):
             "first_token_s": round(first, 2) if first is not None else None,
             "tokens_per_s": tps,
             "chars": len(text),
+            "model": SERVERS["chat"].get("model"),
             "resources": resources(),
         }
         log_test({"kind": "chat", "prompt_chars": sum(len(m.content) for m in req.messages),
-                  "ram_before_gb": res_before["ram_used_gb"], "model": SERVERS["chat"].get("model"), **stats})
+                  "ram_before_gb": res_before["ram_used_gb"], **stats})
         yield sse({"type": "done", "stats": stats})
 
     return StreamingResponse(gen(), media_type="text/event-stream")
@@ -520,6 +534,18 @@ async def invoice_parse(req: ParseReq):
     return parse_proforma(req.text)
 
 
+class HeaderReq(BaseModel):
+    header_text: str
+    full_text: str = ""
+    model: dict = {}
+
+
+@app.post("/api/invoice/header-check")
+async def invoice_header_check(req: HeaderReq):
+    """Merge the model's {seller, buyer} with regex-read number/date/currency/buyer and verify against the document."""
+    return merge_header(req.model, req.header_text, req.full_text)
+
+
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)):
     """Keep the original file (used when the text is entered manually)."""
@@ -651,6 +677,9 @@ async def ocr(file: UploadFile = File(...), prompt: str = Form(""), max_tokens: 
                                     yield nd({"type": "delta", "index": i, "text": piece})
                 except httpx.ConnectError:
                     yield nd({"type": "error", "message": "مدل OCR آماده نیست. از بخش «مدل‌ها» بالای صفحه یک مدل OCR بارگذاری کنید."})
+                    return
+                except (httpx.ReadError, httpx.RemoteProtocolError):
+                    yield nd({"type": "error", "page": i, "message": crash_msg("ocr")})
                     return
                 except Exception as e:  # noqa: BLE001
                     yield nd({"type": "error", "page": i, "message": f"{type(e).__name__}: {e}"})

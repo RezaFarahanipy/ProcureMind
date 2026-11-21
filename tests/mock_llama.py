@@ -21,9 +21,8 @@ async def completions(req: Request):
     if not body.get("stream"):
         return JSONResponse({"choices": [{"message": {"content": "# پیش‌فاکتور\nفروشنده: شرکت نمونه\nجمع: 1,000,000 ریال"}}]})
     joined = " ".join(str(m.get("content", "")) for m in body.get("messages", []))
-    if "payment_terms, delivery_time, validity" in joined and "items[" not in joined:  # header-only prompt
-        data = ('{"seller":"شرکت نمونه","buyer":"شرکت خریدار","number":"1001","date":"1405/01/01","currency":"ریال",'
-                '"payment_terms":null,"delivery_time":null,"validity":null}')
+    if "دو کلید seller و buyer" in joined:  # header-only prompt
+        data = '{"seller":"شرکت نمونه","buyer":"شرکت خریدار"}'
         words = [data[i:i + 12] for i in range(0, len(data), 12)]
     elif "items[" in joined:  # full pre-invoice prompt: answer with JSON (row 2 qty deliberately wrong)
         data = ('{"seller":"شرکت نمونه","number":"1001","date":"1405/01/01","currency":"ریال","items":['

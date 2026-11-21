@@ -216,10 +216,16 @@ def main():
         row["json_ok"] = j is not None
         if jerr:
             row["note"] = jerr
-        if j is not None:
-            if a.mode == "full":
-                bad, done = arithmetic(j)
-                row["arith_checks"], row["arith_problems"] = done, bad
+        if a.mode == "hybrid":  # same validation the app applies to the model's {seller, buyer}
+            chk = c.post("/api/invoice/header-check", json={"header_text": parsed["header_text"], "full_text": doc_text, "model": j or {}}).json()
+            if chk["warnings"]:
+                row["note"] = (row.get("note", "") + f" {len(chk['warnings'])} warning(s) after validation").strip()
+            if golden:
+                h, p = golden_score(chk["header"], golden)
+                row["golden"] = f"{h}/{p}"
+        elif j is not None:
+            bad, done = arithmetic(j)
+            row["arith_checks"], row["arith_problems"] = done, bad
             if golden:
                 h, p = golden_score(j, golden)
                 row["golden"] = f"{h}/{p}"

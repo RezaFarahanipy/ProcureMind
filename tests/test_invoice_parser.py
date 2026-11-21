@@ -38,4 +38,17 @@ if pdf and golden:
     rr = parse_proforma(layout_text(fitz.open(pdf)[0]))
     ok = all(rr["items"][i][k] == g["items"][i][k] for i in range(len(g["items"])) for k in ("qty", "unit_price", "total"))
     check("REAL document matches golden", ok and not rr["problems"], rr["problems"])
+
+# ---- header: the model's {seller, buyer} is verified against the document; number/date/currency/buyer come from regex
+from backend.invoice_parser import merge_header
+ht = r["header_text"]
+ok = merge_header({"seller": "شرکت نمونه", "buyer": "شرکت خریدار"}, ht, TEXT)
+check("good model header accepted, rest read by code", ok["header"] == {"seller": "شرکت نمونه", "buyer": "شرکت خریدار", "number": "1001", "date": "1405/01/01", "currency": "ریال"} and ok["warnings"] == [], ok)
+bad_seller = merge_header({"seller": "شرکتی که وجود ندارد", "buyer": "شرکت خریدار"}, ht, TEXT)
+check("invented seller is rejected with a warning", bad_seller["header"]["seller"] is None and bad_seller["warnings"], bad_seller["warnings"])
+swapped = merge_header({"seller": "شرکت خریدار", "buyer": "شرکت خریدار"}, ht, TEXT)
+check("seller taken from the buyer section is rejected", swapped["header"]["seller"] is None and swapped["header"]["buyer"] == "شرکت خریدار", swapped)
+empty = merge_header({}, ht, TEXT)
+check("model failed: number/date/currency/buyer still read by code", empty["header"]["number"] == "1001" and empty["header"]["buyer"] == "شرکت خریدار" and empty["header"]["seller"] is None)
+check("non-dict model output tolerated", merge_header(None, ht, TEXT)["header"]["number"] == "1001")
 print("ALL OK")
