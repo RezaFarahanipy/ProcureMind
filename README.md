@@ -58,6 +58,16 @@ pip install -r backend\requirements-paddle.txt
 - فقط متن خط‌به‌خط می‌دهد (ساختار جدول و فیلدها را نمی‌فهمد).
 - اگر خطای oneDNN/mkldnn دیدید، همین حالت پیش‌فرض (خاموش) است؛ برای روشن‌کردنش `PADDLE_MKLDNN=1`.
 
+## مقایسه خودکار مدل‌های چت
+
+وقتی چند مدل چت در `models\` دارید، این اسکریپت همه را پشت‌سرهم (بدون نظارت) روی **یک** پیش‌فاکتور PDF تست می‌کند: بارگذاری، زمان تا اولین توکن، توکن بر ثانیه، معتبر بودن JSON، بررسی حساب‌ها و (اختیاری) درستی نسبت به یک فایل «پاسخ درست»:
+
+```
+python scripts\bench_chat.py --pdf C:\مسیر\invoice.pdf --golden tests\golden\private_invoice.json
+python scripts\bench_chat.py --pdf invoice.pdf --models gemma,qwen
+```
+برنامه باید در حال اجرا باشد (`start_app.bat`) و پنجره‌های `start_qwen.bat` و `start_ocr.bat` بسته باشند. نتیجه در `logs\bench_<زمان>.md` و `.json` (با خروجی کامل هر مدل) ذخیره می‌شود. فایل نمونه‌ی «پاسخ درست»: `tests/golden/example_proforma.json`؛ فایل‌های واقعی را با نام `private_*.json` بسازید تا هرگز به گیت نروند.
+
 ## نکات سخت‌افزار (۱۶ گیگ RAM، بدون GPU)
 
 - Qwen 9B و Dots OCR با هم حدود ۱۰ تا ۱۱ گیگ RAM می‌گیرند (تخمین؛ باید اندازه‌گیری شود). اگر RAM پر شد، **هر بار فقط یکی را اجرا کنید**.

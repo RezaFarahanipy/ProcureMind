@@ -8,6 +8,8 @@
 | `frontend/index.html` | تمام UI (CSS+JS داخل یک فایل): یک چت واحد با «+» پیوست، انتخاب مدل چت و روش خواندن فایل (text/manual/dots/paddle) در نوار پایین، کارت استخراج قابل ویرایش داخل چت، کشوی «مدل‌ها و تنظیمات». فونت در `@font-face`/`:root`. توابع کلیدی: `handleSend`, `askModel`, `createCard`, `runExtraction`, `analyze`, `checkInvoice`, `normalizeFa`, `refreshModels` |
 | `frontend/fonts/*.woff2` | SG Kara (FaNum و Std)؛ داخل گیت است (مجوز را مالک تأیید کرده) |
 | `scripts/setup_windows.ps1` | ساخت venv و دانلود آخرین llama.cpp CPU |
+| `scripts/bench_chat.py` | مقایسه خودکار مدل‌های چت روی یک PDF از طریق بک‌اند در حال اجرا (زمان، JSON، حساب‌ها، دقت نسبت به golden). پرامپت‌ها را از `frontend/index.html` می‌خواند |
+| `tests/golden/` | فایل‌های «پاسخ درست»؛ فقط `example_proforma.json` در گیت است، `private_*.json` ignore می‌شود |
 | `scripts/start_app.bat` | اجرای برنامه (پورت ۸۰۰۰). `start_qwen.bat` و `start_ocr.bat` اختیاری و دستی‌اند (پورت ۸۰۸۰ و ۸۰۸۱) |
 | `tests/mock_llama.py` | llama-server ساختگی برای تست |
 | `tests/smoke_test.py` | تست دود سراسری روی بک‌اند |

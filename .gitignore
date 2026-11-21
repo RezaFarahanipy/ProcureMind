@@ -4,6 +4,7 @@ bin/
 # داده و لاگ اجرا
 data/
 logs/
+tests/golden/private_*.json
 .env
 .venv/
 __pycache__/

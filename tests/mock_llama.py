@@ -20,8 +20,18 @@ async def completions(req: Request):
     body = await req.json()
     if not body.get("stream"):
         return JSONResponse({"choices": [{"message": {"content": "# پیش‌فاکتور\nفروشنده: شرکت نمونه\nجمع: 1,000,000 ریال"}}]})
+    joined = " ".join(str(m.get("content", "")) for m in body.get("messages", []))
+    if "seller, buyer, number" in joined:  # pre-invoice extraction prompt: answer with JSON (row 2 qty deliberately wrong)
+        data = ('{"seller":"شرکت نمونه","number":"1001","date":"1405/01/01","currency":"ریال","items":['
+                '{"row":1,"qty":10,"unit":"کیلوگرم","unit_price":1000,"total":10000},'
+                '{"row":2,"qty":4,"unit":"متر","unit_price":2000,"total":10000}],'
+                '"total_before_tax":20000,"tax":2000,"grand_total":22000}')
+        words = [data[i:i + 12] for i in range(0, len(data), 12)]
+    else:
+        words = ["سلام", " این", " یک", " پاسخ", " آزمایشی", " است."]
+
     async def gen():
-        for w in ["سلام", " این", " یک", " پاسخ", " آزمایشی", " است."]:
+        for w in words:
             yield "data: " + json.dumps({"choices": [{"delta": {"content": w}}]}, ensure_ascii=False) + "\n\n"
             await asyncio.sleep(0.05)
         yield "data: " + json.dumps({"choices": [], "timings": {"predicted_per_second": 3.2}}) + "\n\n"
