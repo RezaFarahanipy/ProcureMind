@@ -79,6 +79,16 @@ def _parse_row(cells: list[str]):
     return item, None
 
 
+_SKIP_FOR_MODEL = re.compile(r"^(نشانی|آدرس|تلفن|نمابر|وب\s*سایت|سایت|ایمیل|کد\s*پستی|شماره\s*ثبت|کد\s*اقتصادی|شناسه)")
+
+
+def _header_for_model(lines: list[str], limit: int = 14) -> str:
+    """Short version of the header for the LLM: address / phone / web / ID lines carry no names and only slow the model
+    down (prompt reading dominated the time in real tests)."""
+    keep = [ln.strip() for ln in lines if ln.strip() and not _SKIP_FOR_MODEL.match(ln.strip())]
+    return "\n".join(keep[:limit])
+
+
 def parse_proforma(text: str) -> dict:
     text = text.translate(_DIG)
     lines = [ln.strip() for ln in text.split("\n")]
@@ -125,7 +135,8 @@ def parse_proforma(text: str) -> dict:
             totals["confirmed"][name] = (val in tail_nums) if val is not None else None
             if val is not None and not totals["confirmed"][name]:
                 problems.append(f"جمع محاسبه‌شده‌ی {name} ({val:,}) در متن سند پیدا نشد")
-    return {"items": items, "totals": totals, "header_text": "\n".join(header), "unparsed": unparsed, "problems": problems}
+    return {"items": items, "totals": totals, "header_text": "\n".join(header), "header_for_model": _header_for_model(header),
+            "unparsed": unparsed, "problems": problems}
 
 
 # ---------------------------------------------------------------- header (seller / buyer / number / date / currency)

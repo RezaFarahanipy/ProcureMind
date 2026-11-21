@@ -160,7 +160,7 @@ def main():
             sys.exit("The code parser found no item table in this document; try --mode full.")
         table_note = f"table read by code: {len(parsed['items'])} items, problems: {parsed['problems'] or 'none'}"
         print(table_note)
-        full_prompt = header_prompt + "\n\n---\n" + parsed["header_text"]
+        full_prompt = header_prompt + "\n\n---\n" + (parsed.get("header_for_model") or parsed["header_text"])
         max_tokens = a.max_tokens or 400
         if golden:
             golden = {k: v for k, v in golden.items() if k in ("seller_contains", "buyer_contains", "number", "date", "currency_contains")}

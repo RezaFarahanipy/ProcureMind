@@ -20,6 +20,8 @@ check("discount/tax/grand verified", (a["discount"], a["tax"], a["grand_total"])
 check("totals computed and found in the text", (r["totals"]["total_before_tax"], r["totals"]["tax"], r["totals"]["grand_total"]) == (20000, 2000, 22000) and all(r["totals"]["confirmed"].values()), r["totals"])
 check("header text excludes table + fragments", "شرکت نمونه" in r["header_text"] and "ردیف" not in r["header_text"] and not r["header_text"].rstrip().endswith("مبلغ کل پس از"))
 check("no problems on a clean invoice", r["problems"] == [])
+hm = r["header_for_model"]
+check("model header keeps names/dates, drops address and phone lines", "شرکت نمونه" in hm and "نام: شرکت خریدار" in hm and "نشانی" not in hm and "تلفن" not in hm and len(hm) < len(r["header_text"]), hm)
 
 # a row that does not add up must be reported, never guessed
 bad = TEXT.replace("2 | تیرآهن | 5 کیلوگرم | 2 | شاخه | 2,000 | 10,000", "2 | تیرآهن | 5 کیلوگرم | 2 | شاخه | 2,000 | 10,500")

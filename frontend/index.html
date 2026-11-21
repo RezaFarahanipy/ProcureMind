@@ -325,7 +325,7 @@ async function analyzeHybrid(card, txt, auto) {
   let hdr = {};
   if (p.header_text.trim()) {
     card.setStatus("خواندن سربرگ با مدل…");
-    const out = await askModel({prompt: HEADER_PROMPT + "\n\n---\n" + p.header_text, bubble: null, maxTokens: 200, fresh: true});
+    const out = await askModel({prompt: HEADER_PROMPT + "\n\n---\n" + (p.header_for_model || p.header_text), bubble: null, maxTokens: 200, fresh: true});
     const i0 = out ? out.indexOf("{") : -1;
     if (i0 >= 0) {
       const i1 = out.lastIndexOf("}");
