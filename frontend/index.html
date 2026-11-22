@@ -114,6 +114,11 @@ select,input[type=text],textarea{background:var(--bg);border:1px solid var(--lin
     <button class="sec" id="paddleUnload">آزاد کردن حافظه</button>
     <span class="mstat" id="paddleStat"></span>
   </div>
+  <div class="drow">
+    <b>نام شما</b>
+    <input type="text" id="userName" placeholder="مثلاً رضا" maxlength="30">
+    <span class="mstat">برای سلام و احوال‌پرسی گرم (فقط در همین مرورگر ذخیره می‌شود؛ بعداً با حساب کاربری و ترجیحات)</span>
+  </div>
   <label class="mstat"><input type="checkbox" id="keepBoth"> هر دو مدل (چت و OCR) هم‌زمان در RAM بمانند (حافظه زیاد لازم است؛ پیش‌فرض: با بارگذاری یکی، دیگری خاموش می‌شود)</label>
   <pre id="mErr"></pre>
 </div>
@@ -155,7 +160,15 @@ select,input[type=text],textarea{background:var(--bg);border:1px solid var(--lin
 
 <script>
 const $ = id => document.getElementById(id);
-const SYSTEM = {role: "system", content: "تو دستیار هوشمند بخش تدارکات و بازرگانی هستی. به فارسی، دقیق و مختصر پاسخ بده. اگر اطلاعاتی در متن نیست، حدس نزن و بگو موجود نیست."};
+const SYSTEM = {role: "system", content: ""};  // placeholder at history[0]; the real system message is built per request
+const SYSTEM_TASK = {role: "system", content: "تو دستیار دقیق تدارکات هستی. فقط طبق دستور پاسخ بده و هیچ عددی را حدس نزن."};
+function userName() { try { return (localStorage.getItem("pm_user_name") || "").trim(); } catch (e) { return ""; } }
+function systemChat() {
+  const n = userName();
+  return {role: "system", content: "تو «دستیار پروماین»، دستیار هوشمند بخش تدارکات و بازرگانی هستی. فارسی روان، گرم، صمیمی و محترمانه صحبت کن" +
+    (n ? `؛ نام کاربر «${n}» است و در سلام و احوال‌پرسی او را با نام صدا بزن (مثلاً «سلام ${n} جان! خوبی؟ امروز چه کمکی از دستم برمی‌آید؟»)` : "") +
+    ". پاسخ‌ها کوتاه و دقیق باشند. اگر اطلاعاتی نداری حدس نزن و بگو نمی‌دانم. هرگز عدد مالی را از خودت نساز."};
+}
 let history = [SYSTEM], attached = null, busy = false, autoTouched = false;
 
 const PROMPTS = {
@@ -163,7 +176,7 @@ const PROMPTS = {
   proforma: "متن زیر یک پیش‌فاکتور فارسی است؛ ستون‌های جدول با | جدا شده‌اند. فقط یک JSON فشرده در یک خط (بدون فاصله اضافه و بدون توضیح) با این کلیدها برگردان: seller, buyer, number, date, currency, items[{row,code,name,qty,unit,sub_qty,sub_unit,unit_price,total}], total_before_tax, tax, grand_total, payment_terms, delivery_time, validity. قواعد: qty و unit همان «مقدار اصلی» و واحد آن هستند و فی (unit_price) به ازای همین واحد اصلی است؛ «مقدار فرعی» و «واحد فرعی» را در sub_qty و sub_unit بنویس. کد کالا را در code بگذار و داخل name تکرار نکن. همه اعداد را بدون ویرگول و به‌صورت عدد بنویس. مقدار نامشخص را null بگذار. هیچ عددی را حدس نزن و خودت محاسبه نکن:",
   request: "متن زیر یک درخواست خرید است. فقط یک JSON فشرده با کلیدهای number, date, project, requester, priority, items[{name,spec,qty,unit}], notes برگردان. مقدار نامشخص را null بگذار:"
 };
-const TASKS = {ask: "پرسش من", summary: "خلاصه ساختاریافته", hybrid: "پیش‌فاکتور — ترکیبی (جدول با کد، سربرگ با مدل؛ سریع)", proforma: "پیش‌فاکتور — کامل با مدل (کند)", request: "JSON درخواست خرید"};
+const TASKS = {auto: "تشخیص خودکار نوع سند و انجام کار مناسب (پیشنهادی)", ask: "پرسش من", summary: "خلاصه ساختاریافته", hybrid: "پیش‌فاکتور — ترکیبی (جدول با کد، سربرگ با مدل؛ سریع)", proforma: "پیش‌فاکتور — کامل با مدل (کند)", request: "JSON درخواست خرید"};
 const HEADER_PROMPT = "متن زیر سربرگ یک پیش‌فاکتور فارسی است. فروشنده شرکتی است که پیش‌فاکتور را صادر کرده و نامش بالای سند و قبل از بخش «خریدار» آمده؛ خریدار نامی است که بعد از برچسب «خریدار» می‌آید. فقط یک JSON فشرده در یک خط با دو کلید seller و buyer برگردان و نام‌ها را دقیقاً مثل متن کپی کن. اگر مطمئن نیستی null بگذار:";
 
 // ---------- helpers ----------
@@ -204,7 +217,7 @@ function checkInvoice(text) {
 }
 function scrollDown() { const l = $("log"); l.scrollTop = l.scrollHeight; }
 function clearEmpty() { const e = $("log").querySelector(".empty"); if (e) e.remove(); }
-function showEmpty() { $("log").innerHTML = '<div class="empty">سلام! یک پیام بنویسید یا با «+» پیش‌فاکتور (PDF یا عکس) پیوست کنید.<br>ابتدا از «⚙ مدل‌ها و تنظیمات» و نوار پایین مدل‌ها را بارگذاری کنید.</div>'; }
+function showEmpty() { const n = userName(); $("log").innerHTML = '<div class="empty">' + (n ? `سلام ${n} جان!` : "سلام!") + ' یک پیام بنویسید یا با «+» پیش‌فاکتور (PDF یا عکس) پیوست کنید.<br>ابتدا از «⚙ مدل‌ها و تنظیمات» و نوار پایین مدل‌ها را بارگذاری کنید.</div>'; }
 function addMsg(role, text, chipText) {
   clearEmpty();
   const d = document.createElement("div"); d.className = "msg " + role; d.dir = "auto";
@@ -219,7 +232,7 @@ async function askModel({prompt, bubble, maxTokens = 1024, fresh = false}) {
   if (busy) return false;
   setBusy(true);
   if (bubble) addMsg("user", bubble);
-  const msgs = fresh ? [SYSTEM, {role: "user", content: prompt}] : [SYSTEM, ...history.slice(1).slice(-6), {role: "user", content: prompt}];  // only the last 6 messages (small context)
+  const msgs = fresh ? [SYSTEM_TASK, {role: "user", content: prompt}] : [systemChat(), ...history.slice(1).slice(-6), {role: "user", content: prompt}];  // only the last 6 messages (small context)
   const box = addMsg("assistant", "…"), txt = box.querySelector(".mtext");
   let out = "";
   try {
@@ -289,7 +302,7 @@ function createCard(file, method, msg) {
   el.querySelector("b").textContent = `📄 ${file.name} — ${names[method]}`;
   const ta = el.querySelector(".ctext"), meta = el.querySelector(".cmeta"), stop = el.querySelector(".stop"), sel = el.querySelector(".task");
   for (const [k, v] of Object.entries(TASKS)) { const o = document.createElement("option"); o.value = k; o.textContent = v; sel.appendChild(o); }
-  sel.value = msg ? "ask" : "hybrid";
+  sel.value = msg ? "ask" : "auto";
   const card = {el, ta, msg, file, method, setStatus: t => { meta.textContent = t; }, stop, ctrl: null};
   el.querySelector(".norm").onclick = () => { ta.value = normalizeFa(ta.value); card.setStatus("متن نرمال‌سازی شد."); };
   el.querySelector(".copy").onclick = () => navigator.clipboard && navigator.clipboard.writeText(ta.value);
@@ -301,12 +314,30 @@ function createCard(file, method, msg) {
 async function analyze(card, auto) {
   const txt = card.ta.value.trim();
   if (!txt) { card.setStatus("متنی برای ارسال نیست؛ ابتدا متن را وارد یا استخراج کنید."); return; }
-  const task = card.task.value;
+  let task = card.task.value;
+  if (task === "auto") { task = await classifyAndPick(card, txt, auto); if (!task) return; }
   if (task === "hybrid") { await analyzeHybrid(card, txt, auto); return; }
   const bubble = auto ? null : (task === "ask" && card.msg ? card.msg : `▶ ${TASKS[task]}`);
   card.setStatus("در حال ارسال به مدل…");
   await askModel({prompt: buildPrompt(task, txt, card.msg), bubble, maxTokens: (task === "proforma" || task === "request") ? 2048 : 1024, fresh: true});
   card.setStatus("تحلیل انجام شد؛ می‌توانید متن را اصلاح و دوباره ارسال کنید.");
+}
+const AUTO_TASK = {proforma: "hybrid", purchase_request: "request"};
+let futureNoteShown = false;
+async function classifyAndPick(card, txt, auto) {
+  let c;
+  try {
+    const r = await fetch("/api/classify", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({text: txt})});
+    c = await r.json(); if (!r.ok) throw new Error(c.detail || r.status);
+  } catch (e) { const b = addMsg("assistant", "خطا در تشخیص نوع سند: " + e); b.className = "msg err"; return null; }
+  if (!auto) addMsg("user", "▶ تشخیص خودکار نوع سند");
+  const task = AUTO_TASK[c.type] || "summary";
+  let m = c.type === "other" ? "نوع سند را مطمئن تشخیص ندادم؛ یک خلاصه‌ی ساختاریافته تهیه می‌کنم."
+    : `نوع سند: ${c.label} (اطمینان ${Math.round(c.confidence * 100)}٪)` + (c.evidence.length ? ` — شواهد: ${c.evidence.join("، ")}` : "") + `\nکار مناسب: ${TASKS[task]}`;
+  if (c.type === "proforma" && !futureNoteShown) { futureNoteShown = true; m += "\nبعد از ساخت جدول‌های فروشنده و پیش‌فاکتور (فاز ۳ و ۵)، همین‌جا فروشنده را در بانک اطلاعاتی جست‌وجو می‌کنم و ثبت یا به‌روزرسانی را به شما پیشنهاد می‌دهم؛ فعلاً فقط استخراج انجام می‌شود."; }
+  addMsg("assistant", m);
+  card.task.value = task;
+  return task;
 }
 async function analyzeHybrid(card, txt, auto) {
   if (busy) return;
@@ -481,6 +512,11 @@ async function poll() {
     $("res").textContent = `RAM ${h.resources.ram_used_gb}GB · CPU ${h.resources.cpu_percent}%`;
   } catch { $("dQwen").className = $("dOcr").className = "dot"; }
 }
+$("userName").value = userName();
+$("userName").addEventListener("input", () => {
+  try { localStorage.setItem("pm_user_name", $("userName").value.trim()); } catch (e) { /* storage disabled */ }
+  if ($("log").querySelector(".empty")) showEmpty();
+});
 showEmpty(); syncAuto();
 refreshModels(); setInterval(refreshModels, 3000);
 paddleInfo(); poll(); setInterval(poll, 5000);

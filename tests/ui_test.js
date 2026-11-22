@@ -26,6 +26,7 @@ async function until(fn, ms = 15000) { const t0 = Date.now(); while (Date.now() 
           }
           body = fd;
         }
+        if (String(url).includes("/api/chat")) w.__lastChat = JSON.parse(opts.body);
         return fetch(new URL(url, base), { ...opts, body, signal: undefined });
       };
     },
@@ -37,9 +38,13 @@ async function until(fn, ms = 15000) { const t0 = Date.now(); while (Date.now() 
   check("chat model list filled", $("chatModel").options.length > 0, [...$("chatModel").options].map(o => o.value).join(","));
   check("OCR model list + mmproj filled", $("ocrModel").options.length > 0 && $("ocrMmproj").options.length > 0);
 
+  // 0) personal greeting: the user's name goes into the chat system message
+  $("userName").value = "رضا"; $("userName").dispatchEvent(new w.Event("input"));
+  check("empty state greets by name", d.querySelector(".empty").textContent.includes("سلام رضا جان"));
   // 1) plain chat
   $("input").value = "سلام"; $("send").click();
   check("plain chat gets an answer", await until(() => [...d.querySelectorAll(".msg.assistant")].some(m => m.textContent.includes("پاسخ آزمایشی"))));
+  check("chat system message is the warm persona with the user's name", w.__lastChat.messages[0].role === "system" && w.__lastChat.messages[0].content.includes("«رضا»") && w.__lastChat.messages[0].content.includes("گرم"), w.__lastChat.messages[0].content.slice(0, 80));
   await until(() => !$("send").disabled);
 
   // 2) text-layer PDF + message -> card -> auto analysis
@@ -90,14 +95,16 @@ async function until(fn, ms = 15000) { const t0 = Date.now(); while (Date.now() 
   await w.attach(png); $("send").click();
   await until(() => cards().length === 5);
   const c5 = cards()[4];
-  check("hybrid is the default task when there is no message", c5.querySelector(".task").value === "hybrid");
+  check("auto detection is the default task when there is no message", c5.querySelector(".task").value === "auto");
   c5.querySelector(".ctext").value = fs.readFileSync(synPath, "utf8");
   c5.querySelector(".analyze").click();
   const asst = () => [...d.querySelectorAll(".msg.assistant")].map(m => m.textContent);
+  check("document type detected as pre-invoice and the right job chosen", await until(() => asst().some(t => t.includes("نوع سند: پیش‌فاکتور") && t.includes("کار مناسب"))));
   check("table message (read by code) appears", await until(() => asst().some(t => t.includes("خوانده‌شده با کد") && t.includes('"qty": 5'))));
   check("final result: seller from model, number/date/currency/buyer + table from code", await until(() => asst().some(t => t.includes("نتیجه نهایی") && t.includes('"seller": "شرکت نمونه"') && t.includes('"number": "1001"') && t.includes('"date": "1405/01/01"') && t.includes('"currency": "ریال"') && t.includes('"grand_total": 22000'))));
   check("arithmetic check passes on the merged result", asst().some(t => t.includes("✓ بررسی خودکار")));
   await until(() => !$("send").disabled);
+  check("task jobs use the short task system message (no persona)", w.__lastChat.messages[0].content.includes("دستیار دقیق"));
 
   // 7) new conversation
   $("clear").click();

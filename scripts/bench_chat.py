@@ -22,7 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 def ui_strings():
     html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
     pf = re.search(r'proforma:\s*"((?:[^"\\]|\\.)*)"', html)
-    sy = re.search(r'SYSTEM = \{role: "system", content: "((?:[^"\\]|\\.)*)"\}', html)
+    sy = re.search(r'SYSTEM_TASK = \{role: "system", content: "((?:[^"\\]|\\.)*)"\}', html)
     if not pf or not sy:
         sys.exit("Could not read the prompts from frontend/index.html")
     hp = re.search(r'const HEADER_PROMPT = "((?:[^"\\]|\\.)*)";', html)

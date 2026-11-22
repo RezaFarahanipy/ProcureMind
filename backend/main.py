@@ -29,6 +29,7 @@ from PIL import Image
 from pydantic import BaseModel
 
 from backend import paddle_engine as paddle
+from backend.doc_classifier import classify
 from backend.invoice_parser import merge_header, parse_proforma
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -526,6 +527,12 @@ async def paddle_unload():
 
 class ParseReq(BaseModel):
     text: str
+
+
+@app.post("/api/classify")
+async def classify_document(req: ParseReq):
+    """Detect what kind of document this text is (pre-invoice, invoice, purchase request, ...) with plain rules."""
+    return classify(req.text)
 
 
 @app.post("/api/invoice/parse")
