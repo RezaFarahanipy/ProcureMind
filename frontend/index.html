@@ -77,6 +77,7 @@ select,input[type=text],textarea{background:var(--bg);border:1px solid var(--lin
   <span class="pill"><span class="dot" id="dQwen"></span>مدل چت</span>
   <span class="pill"><span class="dot" id="dOcr"></span>مدل OCR</span>
   <span class="pill" id="res"></span>
+  <span class="pill tech" id="ver" title="نسخه‌ی برنامه"></span>
   <span class="sp"></span>
   <button class="sec" id="drawerBtn">⚙ مدل‌ها و تنظیمات</button>
   <button class="sec" id="clear">گفتگوی جدید</button>
@@ -90,7 +91,7 @@ select,input[type=text],textarea{background:var(--bg);border:1px solid var(--lin
     <span class="mstat">(انتخاب مدل چت از نوار پایین صفحه)</span>
   </div>
   <div class="drow">
-    <b>مدل Dots OCR</b>
+    <b>مدل OCR / بینایی</b>
     <select id="ocrModel"></select>
     <select id="ocrMmproj" title="فایل mmproj (بخش بینایی)"></select>
     <select id="ocrCtx" title="طول context"><option value="4096">ctx 4096</option><option value="8192" selected>ctx 8192</option><option value="16384">ctx 16384</option></select>
@@ -137,7 +138,7 @@ select,input[type=text],textarea{background:var(--bg);border:1px solid var(--lin
       <select id="method" title="روش استخراج متن از فایل پیوست‌شده">
         <option value="text">لایه متنی PDF (فوری؛ برای PDF دیجیتال)</option>
         <option value="manual">دستی (متن را خودم می‌چسبانم، مثلاً از Google Lens)</option>
-        <option value="dots">Dots OCR (کند)</option>
+        <option value="dots">OCR با مدل بینایی (Dots یا هر مدل بینایی؛ کند)</option>
         <option value="paddle">PaddleOCR (سریع؛ فارسی ضعیف)</option>
       </select>
     </label>
@@ -372,6 +373,7 @@ async function analyzeHybrid(card, txt, auto) {
     chk = await r2.json(); if (!r2.ok) throw new Error(chk.detail || r2.status);
   } catch (e) { const b2 = addMsg("assistant", "خطا در بررسی سربرگ: " + e); b2.className = "msg err"; return; }
   const merged = {...chk.header, ...base};
+  rememberInvoice(merged);
   const fin = addMsg("assistant", "نتیجه نهایی (جدول، شماره، تاریخ، ارز و خریدار از کد؛ فروشنده از مدل پس از تطبیق با سند):\n" + JSON.stringify(merged, null, 1));
   const notes2 = [...chk.warnings]; const c2 = checkInvoice(JSON.stringify(merged)); if (c2) notes2.push(c2);
   if (notes2.length) { const d = document.createElement("div"); d.className = "stat"; d.style.whiteSpace = "pre-wrap"; d.textContent = notes2.join("\n"); fin.appendChild(d); }
@@ -429,9 +431,31 @@ async function runExtraction(card) {
 }
 
 // ---------- sending ----------
+let lastInvoice = null;
+function rememberInvoice(inv) {
+  lastInvoice = inv;
+  const slim = {...inv, items: inv.items.map(({row, name, qty, unit, unit_price, total, tax}) => ({row, name, qty, unit, unit_price, total, tax}))};
+  history.push({role: "user", content: "[اطلاعات استخراج‌شده از پیش‌فاکتور برای پاسخ به سؤال‌های بعدی]"}, {role: "assistant", content: JSON.stringify(slim)});
+}
+async function tryInvoiceQuery(text) {
+  try {
+    const r = await fetch("/api/invoice/query", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({question: text, invoice: lastInvoice})});
+    const j = await r.json();
+    if (!r.ok || !j.handled) return false;
+    addMsg("user", text);
+    const b = addMsg("assistant", j.answer);
+    const s = document.createElement("div"); s.className = "stat"; s.textContent = "محاسبه با کد از اطلاعات پیش‌فاکتور آخر"; b.appendChild(s);
+    history.push({role: "user", content: text}, {role: "assistant", content: j.answer});
+    return true;
+  } catch (e) { return false; }
+}
 async function handleSend() {
   const text = $("input").value.trim(), file = attached;
-  if (!file) { if (!text || busy) return; $("input").value = ""; await askModel({prompt: text, bubble: text}); return; }
+  if (!file) {
+    if (!text || busy) return; $("input").value = "";
+    if (lastInvoice && await tryInvoiceQuery(text)) return;  // exact answers from the extracted data, no model needed
+    await askModel({prompt: text, bubble: text}); return;
+  }
   if (busy) return;
   const method = $("method").value;
   $("input").value = ""; clearAttachment();
@@ -447,7 +471,7 @@ async function handleSend() {
 }
 $("send").onclick = handleSend;
 $("input").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } });
-$("clear").onclick = () => { history = [SYSTEM]; showEmpty(); clearAttachment(); };
+$("clear").onclick = () => { history = [SYSTEM]; lastInvoice = null; showEmpty(); clearAttachment(); };
 $("drawerBtn").onclick = () => { $("drawer").hidden = !$("drawer").hidden; };
 
 // ---------- model manager ----------
@@ -520,6 +544,7 @@ $("userName").addEventListener("input", () => {
 showEmpty(); syncAuto();
 refreshModels(); setInterval(refreshModels, 3000);
 paddleInfo(); poll(); setInterval(poll, 5000);
+fetch("/api/version").then(r => r.json()).then(v => { $("ver").textContent = "v" + v.version + (v.commit ? " · " + v.commit : ""); }).catch(() => {});
 </script>
 </body>
 </html>

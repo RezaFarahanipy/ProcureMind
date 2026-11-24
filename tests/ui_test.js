@@ -106,6 +106,13 @@ async function until(fn, ms = 15000) { const t0 = Date.now(); while (Date.now() 
   await until(() => !$("send").disabled);
   check("task jobs use the short task system message (no persona)", w.__lastChat.messages[0].content.includes("دستیار دقیق"));
 
+  // 6b) questions about the extracted invoice are answered with exact calculations (no model)
+  $("input").value = "ارزش افزوده چقدر شد؟"; $("send").click();
+  check("VAT question answered by code", await until(() => asst().some(t => t.includes("ارزش افزوده (مالیات): 2,000") && t.includes("محاسبه با کد"))));
+  $("input").value = "جمع وزن آهن آلات چقدر شد؟"; $("send").click();
+  check("weight question answered by code", await until(() => asst().some(t => t.includes("جمع وزن: 15 کیلوگرم"))));
+  check("version shown in the header", $("ver").textContent.includes("v0.1.0"), $("ver").textContent);
+
   // 7) new conversation
   $("clear").click();
   check("new conversation resets the log", !!d.querySelector(".empty") && cards().length === 0);

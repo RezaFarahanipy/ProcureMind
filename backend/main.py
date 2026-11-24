@@ -30,6 +30,7 @@ from pydantic import BaseModel
 
 from backend import paddle_engine as paddle
 from backend.doc_classifier import classify
+from backend import invoice_calc, validators
 from backend.invoice_parser import merge_header, parse_proforma
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -167,8 +168,9 @@ def list_models() -> dict:
 
     mmproj = [info(p) for p in files if "mmproj" in p.name.lower()]
     llm = [p for p in files if "mmproj" not in p.name.lower()]
-    ocr_ = [info(p) for p in llm if re.search(r"dots|ocr", p.name, re.I)]
-    chat_ = [info(p) for p in llm if not re.search(r"dots|ocr", p.name, re.I)]
+    is_ocr = lambda p: bool(re.search(r"dots|ocr", p.name, re.I))  # noqa: E731
+    ocr_ = [info(p) for p in sorted(llm, key=lambda p: (not is_ocr(p), p.name.lower()))]  # any vision model + mmproj can read images
+    chat_ = [info(p) for p in llm if not is_ocr(p)]
     return {"chat": chat_, "ocr": ocr_, "mmproj": mmproj}
 
 
@@ -551,6 +553,44 @@ class HeaderReq(BaseModel):
 async def invoice_header_check(req: HeaderReq):
     """Merge the model's {seller, buyer} with regex-read number/date/currency/buyer and verify against the document."""
     return merge_header(req.model, req.header_text, req.full_text)
+
+
+class ValidateReq(BaseModel):
+    kind: str
+    value: str
+
+
+@app.post("/api/validate")
+async def validate_field(req: ValidateReq):
+    """Validate + normalise one identifier (national_id, economic_code, mobile, landline, phone, postal_code, iban, card_number)."""
+    try:
+        return validators.validate(req.kind, req.value)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+class QueryReq(BaseModel):
+    question: str
+    invoice: dict
+
+
+@app.post("/api/invoice/query")
+async def invoice_query(req: QueryReq):
+    """Answer a calculation question (VAT, total weight, ...) about an extracted invoice with code, or say it is not handled."""
+    r = invoice_calc.answer(req.question, req.invoice)
+    return {"handled": r is not None, **(r or {})}
+
+
+@app.get("/api/version")
+async def version():
+    v = (ROOT / "VERSION").read_text(encoding="utf-8").strip() if (ROOT / "VERSION").exists() else "0.0.0"
+    commit = date = None
+    try:
+        run = lambda *a: subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, text=True, timeout=3).stdout.strip() or None  # noqa: E731
+        commit, date = run("rev-parse", "--short", "HEAD"), run("log", "-1", "--format=%cs")
+    except Exception:  # noqa: BLE001  (git missing: show the version only)
+        pass
+    return {"version": v, "commit": commit, "date": date}
 
 
 @app.post("/api/upload")
