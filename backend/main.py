@@ -30,7 +30,7 @@ from pydantic import BaseModel
 
 from backend import paddle_engine as paddle
 from backend.doc_classifier import classify
-from backend import invoice_calc, validators
+from backend import invoice_calc, lookup, validators
 from backend.invoice_parser import merge_header, parse_proforma
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -567,6 +567,17 @@ async def validate_field(req: ValidateReq):
         return validators.validate(req.kind, req.value)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+class CanonReq(BaseModel):
+    list_key: str
+    value: str
+
+
+@app.post("/api/lookup/canonicalize")
+async def lookup_canonicalize(req: CanonReq):
+    """Standardise a free-text value (province, unit, ...) to its canonical form, suggest close matches, or flag it as new."""
+    return lookup.canonicalize(req.list_key, req.value)
 
 
 class QueryReq(BaseModel):
