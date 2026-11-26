@@ -17,147 +17,207 @@
 :root{
   --font-ui:"SG Kara FaNum",Tahoma,system-ui,sans-serif;   /* ارقام فارسی */
   --font-tech:"SG Kara",Tahoma,system-ui,sans-serif;        /* ارقام لاتین: شناسه، شماره حساب، مدل */
-  --bg:#f4f5f7;--panel:#fff;--text:#1b1f24;--muted:#6b7280;--line:#e2e5ea;
-  --accent:#1f6feb;--user:#e8f0fe;--bot:#f1f3f5;--ok:#1a9a4a;--bad:#d1242f;
+  --bg:#F7F8FF;--side:#EEF0FF;--panel:#FFFFFF;--text:#1B1F3B;--muted:#5A6080;--line:#E0E3F7;--line2:#ECEEFB;
+  --accent:#4F46E5;--on-accent:#fff;--soft:#E8E7FF;--soft-ink:#3730A3;--user:#E8E7FF;
+  --warn-bg:#FFF1E3;--warn-line:#FDD0A2;--warn-ink:#9A3412;--ok-bg:#E6F7EE;--ok-ink:#166534;--bad:#D1242F;--ok:#16A34A;
+  --shadow:0 8px 26px rgba(79,70,229,.10);
 }
-@media (prefers-color-scheme:dark){:root{--bg:#14171b;--panel:#1d2127;--text:#e7e9ec;--muted:#9aa3ad;--line:#2d333b;--accent:#4c8dff;--user:#1f3350;--bot:#262c33}}
+[data-theme=dark]{
+  --bg:#12142A;--side:#181B36;--panel:#1E2140;--text:#E8EAFB;--muted:#A3A9CF;--line:#2C3059;--line2:#262A50;
+  --accent:#8B85FF;--on-accent:#12142A;--soft:#2A2D5E;--soft-ink:#C7C4FF;--user:#2A2D5E;
+  --warn-bg:#3A2A1B;--warn-line:#6B4423;--warn-ink:#FDBA8C;--ok-bg:#16301F;--ok-ink:#86EFAC;--shadow:0 8px 26px rgba(0,0,0,.35);
+}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
-body{font-family:var(--font-ui);background:var(--bg);color:var(--text);display:flex;flex-direction:column;font-size:15px}
+body{font-family:var(--font-ui);background:var(--bg);color:var(--text);font-size:15px;line-height:1.8}
 .tech,code,.ltr{font-family:var(--font-tech);direction:ltr;unicode-bidi:embed}
-header{display:flex;align-items:center;gap:14px;padding:9px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
-header h1{font-size:17px;margin:0;font-weight:700}
-header .sp{flex:1}
+button,select,input,textarea{font-family:inherit;font-size:14px;color:var(--text)}
+button{cursor:pointer;border:0;border-radius:10px;background:transparent;transition:transform .18s ease,background .18s ease,box-shadow .18s ease}
+button:disabled{opacity:.5;cursor:not-allowed}
+select,input[type=text],textarea{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:5px 8px}
+.app{height:100vh;display:flex;overflow:hidden}
+/* sidebar */
+.side{width:264px;flex:none;background:var(--side);border-left:1px solid var(--line);padding:12px;display:flex;flex-direction:column;gap:12px;overflow:hidden;white-space:nowrap;transition:width .3s cubic-bezier(.2,.7,.2,1)}
+.app.collapsed .side{width:64px}
+.app.collapsed .lbl{display:none !important}
+.app.collapsed .top{flex-direction:column}
+.app.collapsed .nb{width:36px;padding:0;justify-content:center}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.brand{display:flex;align-items:center;gap:9px}
+.logo{width:34px;height:34px;flex:none;border-radius:10px;background:var(--accent);color:var(--on-accent);display:flex;align-items:center;justify-content:center}
+.brandname{font-weight:700;font-size:16px}
+.ib{width:36px;height:36px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.ib:hover,.it:hover,.nb:hover{background:var(--line)}
+.nb{display:flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;font-size:14px;color:var(--text)}
+.nb.primary{background:var(--accent);color:var(--on-accent);justify-content:center;font-weight:500}
+.nb.primary:hover{background:var(--accent);transform:translateY(-1px);box-shadow:0 6px 14px rgba(79,70,229,.25)}
+.chats{display:flex;flex-direction:column;gap:2px;overflow-y:auto;flex:1;min-height:0}
+.it{text-align:right;padding:6px 12px;min-height:36px;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it.act{background:var(--panel);box-shadow:0 1px 2px rgba(27,31,59,.08)}
+.grow{flex:1}
+.ver{font-size:11px;color:var(--muted);padding:0 12px 2px;text-align:right}
+/* main */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top2{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 20px;min-height:52px;border-bottom:1px solid var(--line2)}
+.title{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbtns{display:flex;align-items:center;gap:6px}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--bad)}
 .dot.ok{background:var(--ok)}
-button,select,input,textarea{font-family:inherit;font-size:14px;color:var(--text)}
-button{cursor:pointer;border:0;border-radius:8px;padding:7px 14px;background:var(--accent);color:#fff}
-button.sec{background:transparent;color:var(--text);border:1px solid var(--line)}
-button:disabled{opacity:.5;cursor:not-allowed}
-select,input[type=text],textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
-.drawer{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-direction:column;gap:8px}
-.drawer[hidden]{display:none}
-.drow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.drow b{min-width:78px}
-.drow select{max-width:330px}
-.mstat{font-size:12px;color:var(--muted)}
-.mstat.ready{color:var(--ok)} .mstat.failed{color:var(--bad)}
-#mErr{margin:0;font-size:11px;color:var(--bad);white-space:pre-wrap;max-height:90px;overflow:auto;direction:ltr;text-align:left}
-#log{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px;align-items:center}
-#log>*{width:100%;max-width:880px}
-.empty{color:var(--muted);text-align:center;margin-top:60px;line-height:2}
-.msg{max-width:88%;padding:9px 13px;border-radius:12px;white-space:pre-wrap;line-height:1.9;word-break:break-word}
-.msg.user{background:var(--user);align-self:flex-start}
-.msg.assistant{background:var(--bot);align-self:flex-end}
+#log{flex:1;overflow:auto;padding:24px 24px 8px;display:flex;flex-direction:column;gap:16px;align-items:center}
+#log>*{width:100%;max-width:800px}
+.empty{color:var(--muted);text-align:center;margin-top:90px;line-height:2.1;font-size:16px}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.msg,.card{animation:up .45s cubic-bezier(.2,.7,.2,1) both}
+.msg{max-width:88%;padding:9px 14px;border-radius:16px;white-space:pre-wrap;line-height:1.9;word-break:break-word}
+.msg.user{background:var(--user);align-self:flex-start;border-radius:16px 16px 4px 16px}
+.msg.assistant{background:var(--panel);border:1px solid var(--line2);align-self:flex-end;border-radius:16px 16px 16px 4px;box-shadow:0 1px 3px rgba(27,31,59,.05)}
 .msg.err{background:transparent;border:1px solid var(--bad);color:var(--bad)}
+.msg.typing .mtext{display:none}
+.msg.typing::after{content:"";display:block;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:12px 0 var(--accent),24px 0 var(--accent);margin:8px 24px 8px 0;animation:blink 1.2s infinite}
 .msgchip{display:inline-block;font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:1px 10px;margin-bottom:4px}
 .stat{font-size:11px;color:var(--muted);margin-top:6px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 3px rgba(27,31,59,.05)}
 .chead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .cmeta{font-size:12px;color:var(--muted);flex:1}
-.ctext{width:100%;min-height:150px;max-height:380px;resize:vertical;line-height:1.9}
+.ctext{width:100%;min-height:140px;max-height:360px;resize:vertical;line-height:1.9}
 .cacts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.composer{background:var(--panel);border-top:1px solid var(--line);padding:10px 16px;display:flex;flex-direction:column;gap:8px;align-items:center}
-.composer>*{width:100%;max-width:880px}
-.opts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px}
+.cacts button,.sm{background:var(--accent);color:var(--on-accent);padding:5px 14px;min-height:34px;font-size:13px}
+.cacts button.sec,.sm.sec{background:transparent;color:var(--text);border:1px solid var(--line)}
+.cacts button:hover,.sm:hover{transform:translateY(-1px)}
+/* composer */
+.composer{padding:6px 24px 18px;display:flex;justify-content:center}
+.cin{width:100%;max-width:800px;background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.opts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px}
 .opts label{display:inline-flex;gap:6px;align-items:center;color:var(--muted)}
-.opts input[type=text]{width:70px}
+.opts select{font-size:12px;padding:2px 8px;border-radius:999px;max-width:260px}
+.opts input[type=text]{width:64px;font-size:12px;padding:2px 8px}
+.mstat{font-size:12px;color:var(--muted)}
+.mstat.ready{color:var(--ok)} .mstat.failed{color:var(--bad)}
 .chips:empty{display:none}
-.chip{display:inline-flex;gap:8px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 12px;font-size:13px}
-.chip button{padding:0 7px;border-radius:50%;background:transparent;color:var(--muted);border:0}
+.chip{display:inline-flex;gap:8px;align-items:center;background:var(--soft);color:var(--soft-ink);border-radius:999px;padding:2px 6px 2px 12px;font-size:13px}
+.chip button{padding:0 7px;border-radius:50%;color:var(--muted)}
 .inputrow{display:flex;gap:8px;align-items:flex-end}
-.inputrow textarea{flex:1;resize:none;height:58px}
-.plus{width:40px;height:40px;border-radius:50%;padding:0;font-size:22px;line-height:1}
+.inputrow textarea{flex:1;resize:none;height:50px;border:0;background:transparent;outline:0;font-size:15px;padding:6px 4px}
+.round{width:38px;height:38px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;flex:none}
+.round.plus{border:1px solid var(--line);color:var(--accent);font-size:22px;line-height:1}
+.round.go{background:var(--accent);color:var(--on-accent)}
+.round:hover{transform:translateY(-1px)}
+/* files panel (left) */
+.files{width:0;flex:none;overflow:hidden;background:var(--panel);border-right:1px solid var(--line);transition:width .3s cubic-bezier(.2,.7,.2,1)}
+.app.files-open .files{width:310px}
+.fin{width:310px;padding:14px;display:flex;flex-direction:column;gap:14px;height:100%;overflow:auto}
+.fin h3{margin:0;font-size:15px}
+.fitem{display:flex;flex-direction:column;align-items:flex-start;text-align:right;width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--line2);margin-bottom:6px}
+.fitem:hover{background:var(--soft)}
+.fn{font-weight:500;font-size:14px;word-break:break-all}.fm{font-size:12px;color:var(--muted)}
+.ptitle{font-weight:600;margin-bottom:4px}
+.prow{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:3px 0;border-bottom:1px solid var(--line2)}
+.prow span{color:var(--muted)}
+.pnote{margin-top:8px;padding:6px 10px;border-radius:10px;font-size:12px;background:var(--ok-bg);color:var(--ok-ink);white-space:pre-wrap}
+.pnote.warn{background:var(--warn-bg);color:var(--warn-ink)}
+.hint{color:var(--muted);font-size:13px}
+/* settings sheet */
+.drawer{position:fixed;inset:0;background:rgba(18,20,42,.45);display:flex;align-items:center;justify-content:center;z-index:10}
+.drawer[hidden]{display:none}
+.sheet{width:min(760px,92vw);max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow);animation:up .3s both}
+.sheet h2{margin:0 0 4px;font-size:17px;display:flex;justify-content:space-between;align-items:center}
+.drow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.drow b{min-width:96px;font-weight:600}
+.drow select{max-width:330px}
+#mErr{margin:0;font-size:11px;color:var(--bad);white-space:pre-wrap;max-height:90px;overflow:auto;direction:ltr;text-align:left}
 </style>
 </head>
 <body>
-<header>
-  <h1>ProcureMind</h1>
-  <span class="pill"><span class="dot" id="dQwen"></span>مدل چت</span>
-  <span class="pill"><span class="dot" id="dOcr"></span>مدل OCR</span>
-  <span class="pill" id="res"></span>
-  <span class="pill tech" id="ver" title="نسخه‌ی برنامه"></span>
-  <span class="sp"></span>
-  <button class="sec" id="drawerBtn">⚙ مدل‌ها و تنظیمات</button>
-  <button class="sec" id="clear">گفتگوی جدید</button>
-</header>
 
-<div class="drawer" id="drawer" hidden>
-  <div class="drow">
-    <b>مدل چت</b>
-    <select id="chatCtx" title="طول context (کمتر = RAM کمتر)"><option value="2048">ctx 2048</option><option value="4096" selected>ctx 4096</option><option value="8192">ctx 8192</option></select>
-    <button class="sec" id="chatUnload">خاموش</button>
-    <span class="mstat">(انتخاب مدل چت از نوار پایین صفحه)</span>
+<div class="app" id="app">
+<aside class="side">
+  <div class="top">
+    <div class="brand"><div class="logo"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4M4 17l8 4 8-4"/></svg></div><span class="lbl brandname tech">ProcureMind</span></div>
+    <button class="ib" id="sideBtn" title="جمع‌کردن / بازکردن منو" aria-label="جمع‌کردن منو"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></svg></button>
   </div>
-  <div class="drow">
-    <b>مدل OCR / بینایی</b>
+  <button class="nb primary" id="clear"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">گفتگوی جدید</span></button>
+  <nav class="lbl chats" id="chats" aria-label="سوابق گفتگو"></nav>
+  <div class="grow"></div>
+  <button class="nb" id="drawerBtn" title="مدل‌ها و تنظیمات"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span class="lbl">مدل‌ها و تنظیمات</span></button>
+  <div class="lbl ver tech" id="ver" title="نسخه‌ی برنامه"></div>
+</aside>
+
+<main class="main">
+  <header class="top2">
+    <div class="title" id="title">گفتگوی جدید</div>
+    <div class="hbtns">
+      <span class="pill" title="مدل چت"><span class="dot" id="dQwen"></span>چت</span>
+      <span class="pill" title="مدل OCR / بینایی"><span class="dot" id="dOcr"></span>OCR</span>
+      <span class="pill tech" id="res"></span>
+      <button class="ib" id="themeBtn" aria-label="تم برنامه" title="تم روشن / تیره"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></button>
+      <button class="ib" id="filesBtn" aria-label="فایل‌ها و موارد مهم" title="فایل‌ها و موارد مهم"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg></button>
+    </div>
+  </header>
+  <div id="log"></div>
+  <footer class="composer"><div class="cin">
+    <div class="chips" id="chips"></div>
+    <div class="opts">
+      <label>مدل چت <select id="chatModel"></select></label>
+      <button class="sm sec" id="chatLoad">بارگذاری</button>
+      <span class="mstat" id="chatStat">—</span>
+    </div>
+    <div class="opts">
+      <label>خواندن فایل
+        <select id="method" title="روش استخراج متن از فایل پیوست‌شده">
+          <option value="text">لایه متنی PDF (فوری؛ برای PDF دیجیتال)</option>
+          <option value="manual">دستی (متن را خودم می‌چسبانم، مثلاً از Google Lens)</option>
+          <option value="dots">OCR با مدل بینایی (Dots یا هر مدل بینایی؛ کند)</option>
+          <option value="paddle">PaddleOCR (سریع؛ فارسی ضعیف)</option>
+        </select>
+      </label>
+      <span id="pdfOpts" hidden>
+        <label>صفحه‌ها <input type="text" id="pages" value="1" title="مثلاً 1 یا 1-3,5 یا all (حداکثر ۱۰ صفحه)"></label>
+        <select id="textStyle" title="روش خواندن لایه متنی">
+          <option value="layout">لایه متنی: مرتب‌شده (راست‌به‌چپ + جدول)</option>
+          <option value="raw">لایه متنی: خام</option>
+        </select>
+      </span>
+      <label><input type="checkbox" id="autoAnalyze" checked> تحلیل خودکار</label>
+    </div>
+    <div class="inputrow">
+      <button class="round plus" id="plus" title="پیوست فایل (تصویر یا PDF)" aria-label="پیوست فایل">+</button>
+      <input type="file" id="file" accept="image/*,.pdf" hidden>
+      <textarea id="input" placeholder="پیام بنویسید… با «+» تصویر یا PDF پیوست کنید (Enter = ارسال، Shift+Enter = خط جدید)"></textarea>
+      <button class="round go" id="send" aria-label="ارسال"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+    </div>
+  </div></footer>
+</main>
+
+<aside class="files" aria-label="فایل‌ها و موارد مهم"><div class="fin">
+  <h3>فایل‌ها و موارد مهم</h3>
+  <div id="fileList"><div class="hint">فایل‌های پیوست‌شده‌ی این گفتگو و خلاصه‌ی آخرین پیش‌فاکتور اینجا نشان داده می‌شود.</div></div>
+  <div id="invPanel"></div>
+</div></aside>
+
+<div class="drawer" id="drawer" hidden><div class="sheet">
+  <h2>مدل‌ها و تنظیمات <button class="ib" id="drawerClose" aria-label="بستن"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
+  <div class="drow"><b>نام شما</b><input type="text" id="userName" placeholder="مثلاً رضا" maxlength="30"><span class="mstat">برای سلام و احوال‌پرسی گرم (فقط در همین مرورگر ذخیره می‌شود؛ بعداً با حساب کاربری)</span></div>
+  <div class="drow"><b>مدل چت</b>
+    <select id="chatCtx" title="طول context (کمتر = RAM کمتر)"><option value="2048">ctx 2048</option><option value="4096" selected>ctx 4096</option><option value="8192">ctx 8192</option></select>
+    <button class="sm sec" id="chatUnload">خاموش</button><span class="mstat">(انتخاب مدل از نوار پایین چت)</span></div>
+  <div class="drow"><b>مدل OCR / بینایی</b>
     <select id="ocrModel"></select>
     <select id="ocrMmproj" title="فایل mmproj (بخش بینایی)"></select>
     <select id="ocrCtx" title="طول context"><option value="4096">ctx 4096</option><option value="8192" selected>ctx 8192</option><option value="16384">ctx 16384</option></select>
-    <button id="ocrLoad">بارگذاری</button><button class="sec" id="ocrUnload">خاموش</button>
-    <span class="mstat" id="ocrStat">—</span>
-  </div>
-  <div class="drow">
-    <b>تنظیم Dots</b>
-    <select id="ocrPrompt">
-      <option value="Extract the text content from this image.">فقط متن (پیش‌فاکتور: پیش‌فرض)</option>
-      <option value="Extract all text from this image and preserve structure in markdown.">متن با ساختار (مارک‌داون)</option>
-    </select>
-    <select id="ocrTokens" title="حداکثر طول خروجی">
-      <option value="256">حداکثر ۲۵۶ توکن</option><option value="512" selected>حداکثر ۵۱۲ توکن</option>
-      <option value="1024">حداکثر ۱۰۲۴ توکن</option><option value="2048">حداکثر ۲۰۴۸ توکن</option>
-    </select>
-  </div>
-  <div class="drow">
-    <b>PaddleOCR</b>
+    <button class="sm" id="ocrLoad">بارگذاری</button><button class="sm sec" id="ocrUnload">خاموش</button><span class="mstat" id="ocrStat">—</span></div>
+  <div class="drow"><b>تنظیم OCR بینایی</b>
+    <select id="ocrPrompt"><option value="Extract the text content from this image.">فقط متن (پیش‌فرض)</option><option value="Extract all text from this image and preserve structure in markdown.">متن با ساختار (مارک‌داون)</option></select>
+    <select id="ocrTokens" title="حداکثر طول خروجی"><option value="256">حداکثر ۲۵۶ توکن</option><option value="512" selected>حداکثر ۵۱۲ توکن</option><option value="1024">حداکثر ۱۰۲۴ توکن</option><option value="2048">حداکثر ۲۰۴۸ توکن</option></select></div>
+  <div class="drow"><b>PaddleOCR</b>
     <select id="paddleLang"><option value="fa">فارسی (fa)</option><option value="ar">عربی (ar)</option><option value="en">انگلیسی (en)</option></select>
-    <button class="sec" id="paddleUnload">آزاد کردن حافظه</button>
-    <span class="mstat" id="paddleStat"></span>
-  </div>
-  <div class="drow">
-    <b>نام شما</b>
-    <input type="text" id="userName" placeholder="مثلاً رضا" maxlength="30">
-    <span class="mstat">برای سلام و احوال‌پرسی گرم (فقط در همین مرورگر ذخیره می‌شود؛ بعداً با حساب کاربری و ترجیحات)</span>
-  </div>
-  <label class="mstat"><input type="checkbox" id="keepBoth"> هر دو مدل (چت و OCR) هم‌زمان در RAM بمانند (حافظه زیاد لازم است؛ پیش‌فرض: با بارگذاری یکی، دیگری خاموش می‌شود)</label>
+    <button class="sm sec" id="paddleUnload">آزاد کردن حافظه</button><span class="mstat" id="paddleStat"></span></div>
+  <label class="mstat"><input type="checkbox" id="keepBoth"> هر دو مدل (چت و OCR) هم‌زمان در RAM بمانند (حافظه‌ی زیاد لازم است؛ پیش‌فرض: با بارگذاری یکی، دیگری خاموش می‌شود)</label>
+  <div class="drow"><b>سوابق گفتگو</b><button class="sm sec" id="clearAll">پاک‌کردن سوابق این مرورگر</button><span class="mstat">سوابق فعلاً فقط در همین مرورگر ذخیره می‌شود (تا فاز ۲)</span></div>
   <pre id="mErr"></pre>
+</div></div>
 </div>
-
-<main id="log"></main>
-
-<footer class="composer">
-  <div class="chips" id="chips"></div>
-  <div class="opts">
-    <label>مدل چت <select id="chatModel"></select></label>
-    <button class="sec" id="chatLoad">بارگذاری</button>
-    <span class="mstat" id="chatStat">—</span>
-  </div>
-  <div class="opts">
-    <label>خواندن فایل
-      <select id="method" title="روش استخراج متن از فایل پیوست‌شده">
-        <option value="text">لایه متنی PDF (فوری؛ برای PDF دیجیتال)</option>
-        <option value="manual">دستی (متن را خودم می‌چسبانم، مثلاً از Google Lens)</option>
-        <option value="dots">OCR با مدل بینایی (Dots یا هر مدل بینایی؛ کند)</option>
-        <option value="paddle">PaddleOCR (سریع؛ فارسی ضعیف)</option>
-      </select>
-    </label>
-    <span id="pdfOpts" hidden>
-      <label>صفحه‌ها <input type="text" id="pages" value="1" title="مثلاً 1 یا 1-3,5 یا all (حداکثر ۱۰ صفحه)"></label>
-      <select id="textStyle" title="روش خواندن لایه متنی">
-        <option value="layout">لایه متنی: مرتب‌شده (راست‌به‌چپ + جدول)</option>
-        <option value="raw">لایه متنی: خام</option>
-      </select>
-    </span>
-    <label><input type="checkbox" id="autoAnalyze" checked> تحلیل خودکار بعد از استخراج</label>
-  </div>
-  <div class="inputrow">
-    <button class="plus" id="plus" title="پیوست فایل (تصویر یا PDF)">+</button>
-    <input type="file" id="file" accept="image/*,.pdf" hidden>
-    <textarea id="input" placeholder="پیام بنویسید… با «+» تصویر یا PDF پیوست کنید (Enter = ارسال، Shift+Enter = خط جدید)"></textarea>
-    <button id="send">ارسال</button>
-  </div>
-</footer>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -235,6 +295,7 @@ async function askModel({prompt, bubble, maxTokens = 1024, fresh = false}) {
   if (bubble) addMsg("user", bubble);
   const msgs = fresh ? [SYSTEM_TASK, {role: "user", content: prompt}] : [systemChat(), ...history.slice(1).slice(-6), {role: "user", content: prompt}];  // only the last 6 messages (small context)
   const box = addMsg("assistant", "…"), txt = box.querySelector(".mtext");
+  box.classList.add("typing");
   let out = "";
   try {
     const res = await fetch("/api/chat", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({messages: msgs, max_tokens: maxTokens})});
@@ -246,9 +307,9 @@ async function askModel({prompt, bubble, maxTokens = 1024, fresh = false}) {
         const line = buf.slice(0, i).trim(); buf = buf.slice(i + 2);
         if (!line.startsWith("data:")) continue;
         const ev = JSON.parse(line.slice(5));
-        if (ev.type === "delta") { out += ev.text; txt.textContent = out; }
+        if (ev.type === "delta") { out += ev.text; txt.textContent = out; box.classList.remove("typing"); }
         else if (ev.type === "error") { box.className = "msg err"; txt.textContent = ev.message; }
-        else if (ev.type === "done") { const s = document.createElement("div"); s.className = "stat"; s.textContent = statLine(ev.stats); box.appendChild(s); }
+        else if (ev.type === "done") { box.classList.remove("typing"); const s = document.createElement("div"); s.className = "stat"; s.textContent = statLine(ev.stats); box.appendChild(s); }
         scrollDown();
       }
     }
@@ -258,6 +319,7 @@ async function askModel({prompt, bubble, maxTokens = 1024, fresh = false}) {
       if (c) { const d = document.createElement("div"); d.className = "stat"; d.style.whiteSpace = "pre-wrap"; d.textContent = c; box.appendChild(d); }
     }
   } catch (e) { box.className = "msg err"; txt.textContent = "خطای ارتباط: " + e; }
+  box.classList.remove("typing");
   setBusy(false);
   return out;
 }
@@ -310,6 +372,7 @@ function createCard(file, method, msg) {
   el.querySelector(".analyze").onclick = () => analyze(card, false);
   card.task = sel;
   $("log").appendChild(el); scrollDown();
+  addFileItem(file.name, names[method], el);
   return card;
 }
 async function analyze(card, auto) {
@@ -374,6 +437,7 @@ async function analyzeHybrid(card, txt, auto) {
   } catch (e) { const b2 = addMsg("assistant", "خطا در بررسی سربرگ: " + e); b2.className = "msg err"; return; }
   const merged = {...chk.header, ...base};
   rememberInvoice(merged);
+  showInvoicePanel(merged, chk.warnings);
   const fin = addMsg("assistant", "نتیجه نهایی (جدول، شماره، تاریخ، ارز و خریدار از کد؛ فروشنده از مدل پس از تطبیق با سند):\n" + JSON.stringify(merged, null, 1));
   const notes2 = [...chk.warnings]; const c2 = checkInvoice(JSON.stringify(merged)); if (c2) notes2.push(c2);
   if (notes2.length) { const d = document.createElement("div"); d.className = "stat"; d.style.whiteSpace = "pre-wrap"; d.textContent = notes2.join("\n"); fin.appendChild(d); }
@@ -471,8 +535,10 @@ async function handleSend() {
 }
 $("send").onclick = handleSend;
 $("input").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } });
-$("clear").onclick = () => { history = [SYSTEM]; lastInvoice = null; showEmpty(); clearAttachment(); };
+$("clear").onclick = () => { saveChat(); chatId = null; history = [SYSTEM]; lastInvoice = null; showEmpty(); clearAttachment(); $("fileList").innerHTML = ""; $("invPanel").innerHTML = ""; filesAutoOpened = false; setFiles(false); $("title").textContent = "گفتگوی جدید"; renderChats(); };
 $("drawerBtn").onclick = () => { $("drawer").hidden = !$("drawer").hidden; };
+$("drawerClose").onclick = () => { $("drawer").hidden = true; };
+$("drawer").addEventListener("click", e => { if (e.target === $("drawer")) $("drawer").hidden = true; });
 
 // ---------- model manager ----------
 function fillSelect(sel, list) {
@@ -541,6 +607,66 @@ $("userName").addEventListener("input", () => {
   try { localStorage.setItem("pm_user_name", $("userName").value.trim()); } catch (e) { /* storage disabled */ }
   if ($("log").querySelector(".empty")) showEmpty();
 });
+
+// ---------- shell: collapsible sidebar, files panel, theme, local chat history ----------
+const app = $("app");
+function setCollapsed(v) { app.classList.toggle("collapsed", v); try { localStorage.setItem("pm_collapsed", v ? "1" : ""); } catch (e) { /* storage disabled */ } }
+$("sideBtn").onclick = () => setCollapsed(!app.classList.contains("collapsed"));
+let filesAutoOpened = false;
+function setFiles(v) { app.classList.toggle("files-open", v); }
+$("filesBtn").onclick = () => setFiles(!app.classList.contains("files-open"));
+function setTheme(t) { document.documentElement.dataset.theme = t; try { localStorage.setItem("pm_theme", t); } catch (e) { /* storage disabled */ } }
+$("themeBtn").onclick = () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+function addFileItem(name, label, el) {
+  const b = document.createElement("button"); b.className = "fitem";
+  const n = document.createElement("span"); n.className = "fn"; n.textContent = name;
+  const m = document.createElement("span"); m.className = "fm"; m.textContent = label;
+  b.append(n, m); b.onclick = () => el.scrollIntoView({behavior: "smooth", block: "center"});
+  $("fileList").appendChild(b);
+  if (!filesAutoOpened) { filesAutoOpened = true; setFiles(true); }
+}
+function showInvoicePanel(inv, warnings) {
+  const box = $("invPanel"); box.innerHTML = "";
+  const h = document.createElement("div"); h.className = "ptitle"; h.textContent = "آخرین پیش‌فاکتور"; box.appendChild(h);
+  const rows = [["فروشنده", inv.seller || "—"], ["خریدار", inv.buyer || "—"], ["شماره · تاریخ", `${inv.number || "—"} · ${inv.date || "—"}`],
+    ["تعداد اقلام", String((inv.items || []).length)], ["جمع قبل از مالیات", inv.total_before_tax != null ? inv.total_before_tax.toLocaleString("en") : "—"],
+    ["مالیات", inv.tax != null ? inv.tax.toLocaleString("en") : "—"], ["جمع کل", inv.grand_total != null ? inv.grand_total.toLocaleString("en") : "—"]];
+  for (const [k, v] of rows) { const r = document.createElement("div"); r.className = "prow"; const a = document.createElement("span"); a.textContent = k; const c = document.createElement("b"); c.textContent = v; r.append(a, c); box.appendChild(r); }
+  const w = document.createElement("div"); w.className = "pnote" + (warnings.length ? " warn" : ""); w.textContent = warnings.length ? warnings.join("\n") : "✓ حساب‌ها تأیید شد"; box.appendChild(w);
+  if (!app.classList.contains("files-open")) setFiles(true);
+}
+const CH_KEY = "pm_chats";
+let chatId = null;
+function loadChats() { try { return JSON.parse(localStorage.getItem(CH_KEY) || "[]"); } catch (e) { return []; } }
+function storeChats(list) { try { localStorage.setItem(CH_KEY, JSON.stringify(list.slice(0, 30))); } catch (e) { /* storage disabled */ } }
+function snapshotMessages() {
+  return [...$("log").querySelectorAll(".msg")].filter(m => !m.classList.contains("typing") && !m.classList.contains("err"))
+    .map(m => ({role: m.classList.contains("user") ? "user" : "assistant", text: (m.querySelector(".mtext") || m).textContent.trim()}))
+    .filter(m => m.text && m.text !== "…");
+}
+function saveChat() {
+  const msgs = snapshotMessages(); if (!msgs.length) return;
+  if (!chatId) chatId = "c" + Date.now();
+  const list = loadChats().filter(c => c.id !== chatId);
+  const first = msgs.find(m => m.role === "user");
+  list.unshift({id: chatId, title: (first ? first.text : "گفتگو").slice(0, 40), ts: Date.now(), msgs});
+  storeChats(list); renderChats(); $("title").textContent = list[0].title;
+}
+let saveTimer; new MutationObserver(() => { clearTimeout(saveTimer); saveTimer = setTimeout(saveChat, 700); }).observe($("log"), {childList: true, subtree: true, characterData: true});
+function renderChats() {
+  const nav = $("chats"); nav.innerHTML = "";
+  for (const c of loadChats()) { const b = document.createElement("button"); b.className = "it" + (c.id === chatId ? " act" : ""); b.textContent = c.title; b.title = c.title; b.onclick = () => openChat(c.id); nav.appendChild(b); }
+}
+function openChat(id) {
+  const c = loadChats().find(x => x.id === id); if (!c) return;
+  chatId = id; $("log").innerHTML = ""; history = [SYSTEM, ...c.msgs.map(m => ({role: m.role, content: m.text}))]; lastInvoice = null;
+  $("fileList").innerHTML = ""; $("invPanel").innerHTML = "";
+  for (const m of c.msgs) addMsg(m.role, m.text);
+  $("title").textContent = c.title; renderChats();
+}
+$("clearAll").onclick = () => { try { localStorage.removeItem(CH_KEY); } catch (e) { /* ignore */ } renderChats(); };
+try { if (localStorage.getItem("pm_collapsed")) setCollapsed(true); if (localStorage.getItem("pm_theme")) setTheme(localStorage.getItem("pm_theme")); } catch (e) { /* ignore */ }
+renderChats();
 showEmpty(); syncAuto();
 refreshModels(); setInterval(refreshModels, 3000);
 paddleInfo(); poll(); setInterval(poll, 5000);

@@ -7,11 +7,12 @@
 | `backend/validators.py` | اعتبارسنجی و نرمال‌سازی شناسه‌ها (کد/شناسه ملی، شبا + بانک، موبایل، تلفن، کد پستی، کد اقتصادی، کارت) و `normalize_text`/`fold`؛ endpoint: `/api/validate` |
 | `backend/lookup.py` | استانداردسازی متن آزاد (استان، واحد…) با نام مستعار و پیشنهاد نزدیک؛ مدل درون‌حافظه‌ی `lookup_values`/`lookup_aliases`؛ endpoint: `/api/lookup/canonicalize` |
 | `backend/invoice_calc.py` | پاسخ دقیق با کد به سؤال‌های محاسباتی روی پیش‌فاکتور استخراج‌شده؛ endpoint: `/api/invoice/query` |
+| `scripts/update.py`, `scripts/update.bat` | به‌روزرسانی با یک کلیک از گیت‌هاب (پوشه‌های کاربر را حفظ می‌کند) |
 | `VERSION`, `CHANGELOG.md`, `scripts/release.py` | نسخه‌بندی؛ `/api/version` |
 | `backend/doc_classifier.py` | تشخیص نوع سند با قواعد (پیش‌فاکتور، فاکتور، درخواست خرید، استعلام، رسید پرداخت، رسید انبار، سفارش/قرارداد، بارنامه)؛ endpoint: `/api/classify` |
 | `backend/invoice_parser.py` | خواندن جدول پیش‌فاکتور بدون مدل: ردیف‌ها را با شرط «تعداد×فی=مبلغ» (کنار هم) پیدا می‌کند، تخفیف/مالیات/جمع هر ردیف و جمع‌های کل را تأیید می‌کند، متن سربرگ را جدا می‌دهد. endpoint: `/api/invoice/parse`؛ `code_header` شماره/تاریخ/ارز/خریدار را با regex می‌خواند و `merge_header` پاسخ مدل ({seller,buyer}) را با متن سند تطبیق می‌دهد؛ endpoint: `/api/invoice/header-check` |
 | `backend/paddle_engine.py` | موتور سوم OCR (PaddleOCR) داخل همان فرایند؛ بارگذاری تنبل با `load(lang)`، `read(img)`، `unload()`؛ اختیاری (`requirements-paddle.txt`) |
-| `frontend/index.html` | تمام UI (CSS+JS داخل یک فایل): یک چت واحد با «+» پیوست، انتخاب مدل چت و روش خواندن فایل (text/manual/dots/paddle) در نوار پایین، کارت استخراج قابل ویرایش داخل چت، کشوی «مدل‌ها و تنظیمات». فونت در `@font-face`/`:root`. توابع کلیدی: `handleSend`, `askModel`, `createCard`, `runExtraction`, `analyze`, `classifyAndPick` (تشخیص خودکار نوع سند)، `analyzeHybrid` (جدول با کد + سربرگ با مدل)، `systemChat`/`userName` (لحن گرم با نام کاربر)، `checkInvoice`, `normalizeFa`, `refreshModels` |
+| `frontend/index.html` | تمام UI (CSS+JS داخل یک فایل، بدون build): منوی راست جمع‌شونده + سوابق (localStorage)، چت، پنل چپ فایل‌ها/خلاصه‌ی پیش‌فاکتور، تم، پنجره‌ی تنظیمات. منطق: `handleSend`, `askModel`, `createCard`, `runExtraction`, `analyze`, `classifyAndPick`, `analyzeHybrid`, `tryInvoiceQuery`, `checkInvoice`, `normalizeFa`, `refreshModels`, `saveChat/openChat` |
 | `frontend/fonts/*.woff2` | SG Kara (FaNum و Std)؛ داخل گیت است (مجوز را مالک تأیید کرده) |
 | `scripts/setup_windows.ps1` | ساخت venv و دانلود آخرین llama.cpp CPU |
 | `scripts/bench_chat.py` | مقایسه خودکار مدل‌های چت روی یک PDF از طریق بک‌اند در حال اجرا (زمان، JSON، حساب‌ها، دقت نسبت به golden). پرامپت‌ها را از `frontend/index.html` می‌خواند |

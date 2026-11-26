@@ -113,9 +113,28 @@ async function until(fn, ms = 15000) { const t0 = Date.now(); while (Date.now() 
   check("weight question answered by code", await until(() => asst().some(t => t.includes("جمع وزن: 15 کیلوگرم"))));
   check("version shown in the header", $("ver").textContent.includes("v0.1.0"), $("ver").textContent);
 
+  // 6c) shell: files panel, theme, sidebar collapse
+  check("files panel opened automatically and lists the attached files", $("app").classList.contains("files-open") && $("fileList").querySelectorAll(".fitem").length >= 4, $("fileList").textContent.slice(0, 60));
+  check("invoice summary panel filled", $("invPanel").textContent.includes("آخرین پیش‌فاکتور") && $("invPanel").textContent.includes("22,000"), $("invPanel").textContent.slice(0, 80));
+  $("themeBtn").click();
+  check("theme toggles to dark and is remembered", d.documentElement.dataset.theme === "dark" && w.localStorage.getItem("pm_theme") === "dark");
+  $("themeBtn").click();
+  $("sideBtn").click();
+  check("sidebar collapses", $("app").classList.contains("collapsed") && w.localStorage.getItem("pm_collapsed") === "1");
+  check("chat history text is hidden when the sidebar is collapsed", w.getComputedStyle($("chats")).display === "none");
+  $("sideBtn").click();
+  check("sidebar expands again", !$("app").classList.contains("collapsed"));
+  $("filesBtn").click();
+  check("files panel can be closed", !$("app").classList.contains("files-open"));
+  await sleep(1000);  // let the debounced history save run
+  check("conversation saved in the browser", JSON.parse(w.localStorage.getItem("pm_chats") || "[]").some(c => c.msgs.some(m => m.text === "سلام")));
+
   // 7) new conversation
   $("clear").click();
   check("new conversation resets the log", !!d.querySelector(".empty") && cards().length === 0);
+  check("previous conversation is listed in the sidebar", $("chats").querySelectorAll(".it").length >= 1, $("chats").textContent.slice(0, 50));
+  $("chats").querySelector(".it").click();
+  check("opening a saved conversation restores its messages", [...d.querySelectorAll(".msg.user")].some(m => m.textContent.includes("سلام")));
   console.log(failed ? `\n${failed} FAILED` : "\nALL OK");
   process.exit(failed ? 1 : 0);
 })().catch(e => { console.error("CRASH", e); process.exit(2); });
